@@ -9,6 +9,8 @@ The frontend is deployed on Netlify.
 - Base directory: `frontend`
 - Build command: `npx expo export --platform web`
 - Publish directory: `dist`
+- Redirect rule: `/.netlify/identity/* -> /.netlify/identity/:splat (200)`
+- SPA fallback: `/* -> /index.html (200)`
 
 ### Required Netlify environment variable
 
