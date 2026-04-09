@@ -1,0 +1,4 @@
+feature,acceptance_test,unit_tests,status
+auth,test_acceptance_auth,test_unit_auth,planned
+inventory,test_acceptance_inventory,test_unit_inventory,planned
+weekly-plan,test_acceptance_weekly-plan,test_unit_weekly-plan,planned
