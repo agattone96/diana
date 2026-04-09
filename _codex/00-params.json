@@ -1,0 +1,10 @@
+{
+  "org": "diana-org",
+  "repo": "diana",
+  "env_name": "dev",
+  "app_name": "diana-web",
+  "app_type": "web",
+  "stack_preset": "react-fastapi",
+  "language": "ts",
+  "internet_after_setup": "off"
+}

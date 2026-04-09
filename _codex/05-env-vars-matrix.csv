@@ -1,0 +1,4 @@
+name,scope,required,sensitivity,owner
+DATABASE_URL,local|preview|production,yes,high,diana-org
+OPENAI_API_KEY,preview|production,yes,high,diana-org
+APP_ENV,local|preview|production,yes,low,diana-org
