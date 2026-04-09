@@ -1,0 +1,101 @@
+{
+  "theme": "light",
+  "archetype": "Organic & Earthy",
+  "mood": "Calm, practical, premium, legible, and touch-friendly. A low-stimulus interface with natural colors.",
+  "colors": {
+    "background": "#F7F5F0",
+    "surface": "#FFFFFF",
+    "surface_muted": "#EFEBE1",
+    "primary": "#2C5530",
+    "primary_hover": "#214224",
+    "accent": "#C85A3C",
+    "accent_hover": "#A6472D",
+    "text_main": "#222222",
+    "text_muted": "#6E6D69",
+    "border": "#E5E1D8",
+    "success": "#4A7c59",
+    "warning": "#E89F4C",
+    "danger": "#D9534F"
+  },
+  "typography": {
+    "font_family_heading": "Manrope",
+    "font_family_body": "DM Sans",
+    "h1": "text-4xl font-semibold tracking-tight leading-none text-[#222222]",
+    "h2": "text-2xl font-medium tracking-tight text-[#222222]",
+    "h3": "text-xl font-medium text-[#222222]",
+    "h4": "text-lg font-medium text-[#222222]",
+    "body": "text-base font-normal leading-relaxed text-[#222222]",
+    "small": "text-sm text-[#6E6D69]",
+    "label": "text-xs font-semibold uppercase tracking-[0.1em] text-[#6E6D69]"
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing, generous hit targets for touch, mobile-first.",
+    "container_padding": "p-4 sm:p-6",
+    "element_gap": "gap-4 sm:gap-6",
+    "card_padding": "p-5 sm:p-6",
+    "border_radius": "rounded-xl sm:rounded-2xl"
+  },
+  "components": {
+    "card": {
+      "style": "bg-white rounded-2xl border border-[#E5E1D8] shadow-sm",
+      "hover": "hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+    },
+    "button_primary": {
+      "style": "bg-[#C85A3C] text-white font-medium rounded-xl px-6 py-3.5 flex items-center justify-center transition-all",
+      "hover": "hover:bg-[#A6472D]"
+    },
+    "button_secondary": {
+      "style": "bg-white text-[#2C5530] border border-[#2C5530] font-medium rounded-xl px-6 py-3.5 flex items-center justify-center transition-all",
+      "hover": "hover:bg-[#F0F4F1]"
+    },
+    "chip_selected": {
+      "style": "bg-[#2C5530] text-white rounded-full px-4 py-2 text-sm font-medium transition-colors"
+    },
+    "chip_unselected": {
+      "style": "bg-[#EFEBE1] text-[#6E6D69] rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-[#E5E1D8] hover:text-[#222222]"
+    },
+    "bottom_nav": {
+      "style": "bg-white border-t border-[#E5E1D8] pb-safe pt-2 px-4 flex justify-between items-center"
+    },
+    "stepper": {
+      "style": "flex items-center gap-4 bg-white p-2 rounded-xl border border-[#E5E1D8]"
+    }
+  },
+  "motion_and_interactions": {
+    "hover_state": "Slight lift (-translate-y-0.5) and shadow-md for interactive cards.",
+    "transitions": "transition-all duration-200 ease-in-out",
+    "tap_state": "Scale down slightly on press (active:scale-95) for buttons and chips to provide tactile mobile feedback."
+  },
+  "media": {
+    "hero_background": {
+      "url": "https://images.pexels.com/photos/8900035/pexels-photo-8900035.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "A man unpacks groceries from a paper bag on a kitchen counter with fresh vegetables. Good for onboarding or empty states."
+    },
+    "kitchen_prep": {
+      "url": "https://images.pexels.com/photos/4920543/pexels-photo-4920543.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Two adults wash and slice fresh vegetables on a kitchen counter. Good for Recipe cards or meal planning visuals."
+    },
+    "inventory_placeholder": {
+      "url": "https://images.unsplash.com/photo-1759249981443-a73ec2596f2b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2OTV8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMHZlZ2V0YWJsZXMlMjBraXRjaGVuJTIwY291bnRlcnxlbnwwfHx8fDE3NzU3MTY2Mzh8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Broccoli and cauliflower florets. Use as a placeholder for inventory items."
+    }
+  },
+  "icons_and_assets": {
+    "library": "lucide-react",
+    "stroke_width": 1.5,
+    "size": "w-5 h-5 or w-6 h-6 for mobile hit areas"
+  },
+  "instructions_to_main_agent": [
+    "Build a mobile-first UI using Expo React Native / Web conventions.",
+    "Ensure touch targets are at least 44x44px. This means buttons, chips, and nav items need adequate padding.",
+    "For the 'This Week' view, use a card-based bento layout with generous spacing.",
+    "Implement chips for multi-select (e.g., stores, meals).",
+    "Implement steppers and sliders for budget and quantity adjustments.",
+    "The Primary CTA 'Build This Week's Plan' should be highly visible, using the accent color (#C85A3C).",
+    "Use Manrope for headings and DM Sans for body text.",
+    "Include 'data-testid' attributes on all interactive elements (chips, buttons, inputs).",
+    "Do not use default shadcn styles blindly; customize the radii (rounded-xl) and colors to match the earthy theme.",
+    "Ensure the bottom tab navigation is fixed at the bottom, clearly indicating the active tab.",
+    "Do not use dark mode. The application must remain light, airy, and practical."
+  ]
+}
