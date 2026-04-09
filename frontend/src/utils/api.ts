@@ -1,5 +1,39 @@
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
-const API = BASE ? `${BASE}/api` : null;
+const rawBackendUrl = process.env.EXPO_PUBLIC_BACKEND_URL?.trim();
+
+function getApiBaseUrl() {
+  if (!rawBackendUrl) {
+    throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured for this build.');
+  }
+
+  if (rawBackendUrl.startsWith('postgresql://') || rawBackendUrl.startsWith('postgres://')) {
+    throw new Error(
+      'EXPO_PUBLIC_BACKEND_URL must be an https:// backend URL (for example https://<render-service>.onrender.com), not a database URL.',
+    );
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawBackendUrl);
+  } catch {
+    throw new Error('EXPO_PUBLIC_BACKEND_URL must be a valid absolute https:// URL.');
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
+    throw new Error('EXPO_PUBLIC_BACKEND_URL must use https://.');
+  }
+
+  const baseUrl = rawBackendUrl.replace(/\/+$/, '');
+  return `${baseUrl}/api`;
+}
+
+let cachedApiBaseUrl: string | null = null;
+
+function resolveApiBaseUrl() {
+  if (!cachedApiBaseUrl) {
+    cachedApiBaseUrl = getApiBaseUrl();
+  }
+  return cachedApiBaseUrl;
+}
 
 let authToken: string | null = null;
 
@@ -18,15 +52,12 @@ export class ApiError extends Error {
 }
 
 async function request(path: string, options?: RequestInit) {
-  if (!API) {
-    throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured for this build.');
-  }
-
+  const apiBaseUrl = resolveApiBaseUrl();
   const headers = new Headers(options?.headers || {});
   if (!headers.has('Content-Type') && options?.body) headers.set('Content-Type', 'application/json');
   if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
 
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers,
   });
