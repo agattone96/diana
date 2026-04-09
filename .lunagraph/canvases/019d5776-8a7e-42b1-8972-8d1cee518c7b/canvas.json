@@ -1,0 +1,1583 @@
+{
+  "zoom": 0.2845717907342648,
+  "elements": [
+    {
+      "id": "el-1772523467038-1267-8mtv",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 250,
+        "left": 20,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467038-1268-gz4g",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1269-rfkx",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1270-8s4e",
+                  "tag": "span",
+                  "text": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467038-1271-jdr5",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1272-st4y",
+                  "tag": "span",
+                  "text": "What is Lunagraph?",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467038-1273-xxoh",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1274-5sp5",
+              "tag": "span",
+              "text": "Lunagraph is a visual design tool that lets you create UI components by clicking and selecting on the canvas. All your designs are made out of code, so you instantly get production-ready code using your favorite frameworks.",
+              "type": "text"
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "el-1772523467038-1275-pz2k",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 250,
+        "left": 400,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467038-1276-xfbk",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1277-qi23",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1278-fgfq",
+                  "tag": "span",
+                  "text": "2",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467038-1279-hzdp",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1280-9ti5",
+                  "tag": "span",
+                  "text": "Adding Elements",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467038-1281-wivh",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1282-vxpq",
+              "tag": "span",
+              "text": "Click the",
+              "type": "text"
+            },
+            {
+              "id": "el-1772523467038-1283-t6ug",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1284-v1f6",
+                  "tag": "span",
+                  "text": "Insert",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467038-1285-o2d2",
+              "tag": "span",
+              "text": "tab on the left panel, and add a",
+              "type": "text"
+            },
+            {
+              "id": "html-CXdpuV8ZxJ_q9R63ZVDin",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-JPMceYUWRcCzjVg5VNbDA",
+                  "tag": "span",
+                  "text": "div",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467038-1286-9kax",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1287-2kjr",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs text-gray-500 mb-1"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1288-ok39",
+                  "tag": "span",
+                  "text": "HTML Elements:",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467038-1289-vlew",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex gap-2 flex-wrap"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1290-9804",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "bg-gray-100 px-2 py-1 rounded text-xs font-mono"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523467038-1291-a5vj",
+                      "tag": "span",
+                      "text": "div",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "el-1772523467038-1296-wfev",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 250,
+        "left": 780,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467038-1297-v45t",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1298-w8hh",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1299-nu98",
+                  "tag": "span",
+                  "text": "3",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467038-1300-ziju",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1301-t6i0",
+                  "tag": "span",
+                  "text": "Adding Text",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467038-1302-4xtz",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1304-tbug",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "text-xs font-bold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1303-jf85",
+                  "tag": "span",
+                  "text": "Click on your ",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "html-fgl6JYqMAbK7YD1yIs8Ht",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs font-bold"
+              },
+              "children": [
+                {
+                  "id": "text-4gWiLyAhoEL9HV3L8Rpuu",
+                  "tag": "span",
+                  "text": "div",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "text-E-rXc_MERBZhAf4NrhhMx",
+              "tag": "span",
+              "text": " then go to ",
+              "type": "text"
+            },
+            {
+              "id": "html-eJKCDgWIoewJ5TzWjUoFD",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-lvPNzgd0lYjm8m3c13rMt",
+                  "tag": "span",
+                  "text": "Insert > Text",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467038-1306-g5wb",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467038-1307-04oz",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "border-2 border-dashed border-gray-300 rounded p-3 text-center"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467038-1308-ggro",
+                  "tag": "p",
+                  "type": "html",
+                  "props": {
+                    "className": "text-sm text-gray-700"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523467038-1309-bmt0",
+                      "tag": "span",
+                      "text": "Hello, Lunagraph!",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "el-1772523467039-1310-zrqk",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 250,
+        "left": 1160,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467039-1311-ttiu",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1312-1myt",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1313-utdi",
+                  "tag": "span",
+                  "text": "4",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1314-wh2o",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1315-0948",
+                  "tag": "span",
+                  "text": "Adding Components",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1316-tkpl",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1317-sveu",
+              "tag": "span",
+              "text": "Click the",
+              "type": "text"
+            },
+            {
+              "id": "el-1772523467039-1318-qehk",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1319-ebgh",
+                  "tag": "span",
+                  "text": "Assets",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1320-dd9s",
+              "tag": "span",
+              "text": "tab for UI components, then add a ",
+              "type": "text"
+            },
+            {
+              "id": "html-pCD-7XjUgEwoj9WH_mH9U",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-bnikZeCEToctRWGA0lx4D",
+                  "tag": "span",
+                  "text": "Button",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "html-X8MNVMAs1-XkL7Fr51PLw",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "text-WvgBswkIudbBwHNXLqxL3",
+              "tag": "span",
+              "text": "Click your added ",
+              "type": "text"
+            },
+            {
+              "id": "html-3zXMO3LppvtzH4jHcWhXz",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-Vl759FA1HpuD-zk6HmTlL",
+                  "tag": "span",
+                  "text": "Button",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "text-S56i5ig5BHX52xwe4zg86",
+              "tag": "span",
+              "text": " then go to ",
+              "type": "text"
+            },
+            {
+              "id": "html-tKXenuRkJ8ottSK6Fxeva",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-Ecbfpf84rEvs-bsq4Zq56",
+                  "tag": "span",
+                  "text": "Insert > Text",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1321-cqyh",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1322-kqcz",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs text-gray-500 mb-1"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1323-6y53",
+                  "tag": "span",
+                  "text": "UI Components:",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1324-guk4",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex gap-2"
+              },
+              "children": []
+            },
+            {
+              "id": "component-WBFsSQb83jiEnhvmtoLkB",
+              "type": "component",
+              "props": {},
+              "styles": {},
+              "children": [
+                {
+                  "id": "text-In63R_e-BR1tr5djxeiO6",
+                  "tag": "span",
+                  "text": "Button",
+                  "type": "text",
+                  "styles": {}
+                }
+              ],
+              "componentName": "Button"
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "el-1772523467039-1328-ehe6",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 250,
+        "left": 1540,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467039-1329-nlwx",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1330-9tht",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1331-vhi4",
+                  "tag": "span",
+                  "text": "5",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1332-wnko",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1333-4jrv",
+                  "tag": "span",
+                  "text": "Components Variants",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1334-ip7y",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1335-i6y0",
+              "tag": "span",
+              "text": "Click on your Button, then go to the Right Hand side, set ",
+              "type": "text"
+            },
+            {
+              "id": "html-SahoTDsWmb5Bw1eERd5eO",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-JOvOndTtD4VPbmanzJ2qK",
+                  "tag": "span",
+                  "text": "variant",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "text-NYP5mFaFyR8NbfNgnfU0W",
+              "tag": "span",
+              "text": " to ",
+              "type": "text"
+            },
+            {
+              "id": "html-SABl9jx-fjonzPSHzG_hW",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "text-bzSoD6tBkJBOBvYJgzFmr",
+                  "tag": "span",
+                  "text": "outline",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1336-ph3t",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3"
+          },
+          "styles": {
+            "gap": "normal",
+            "display": "flex",
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1337-v8z9",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs text-gray-500 mb-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1338-3plq",
+                  "tag": "span",
+                  "text": "Change variant in right panel:",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1339-rrlw",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "space-y-2"
+              },
+              "styles": {
+                "gap": "8px",
+                "display": "flex",
+                "flexDirection": "column"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1340-er77",
+                  "tag": "div",
+                  "type": "html",
+                  "props": {
+                    "className": "flex items-center gap-2"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523467039-1341-pj3u",
+                      "tag": "span",
+                      "type": "html",
+                      "props": {
+                        "className": "text-xs"
+                      },
+                      "children": [
+                        {
+                          "id": "el-1772523467039-1342-fqlj",
+                          "tag": "span",
+                          "text": "Default:",
+                          "type": "text"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "component-9Jlhw7v_OTbUJqbMa9wvY",
+                      "type": "component",
+                      "props": {},
+                      "styles": {},
+                      "children": [
+                        {
+                          "id": "text-_TfgHov3CMXe2iwCaVXFF",
+                          "tag": "span",
+                          "text": "Button",
+                          "type": "text",
+                          "styles": {}
+                        }
+                      ],
+                      "componentName": "Button"
+                    }
+                  ]
+                },
+                {
+                  "id": "el-1772523467039-1345-id4l",
+                  "tag": "div",
+                  "type": "html",
+                  "props": {
+                    "className": "flex items-center gap-2"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523467039-1346-cstj",
+                      "tag": "span",
+                      "type": "html",
+                      "props": {
+                        "className": "text-xs"
+                      },
+                      "children": [
+                        {
+                          "id": "el-1772523467039-1347-240z",
+                          "tag": "span",
+                          "text": "Outline:",
+                          "type": "text"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "component-pOeH6AvGkbf5NWCxIerX_",
+                      "type": "component",
+                      "props": {
+                        "variant": "outline"
+                      },
+                      "styles": {},
+                      "children": [
+                        {
+                          "id": "text-b0x2CYRQlRF1bFx5oe-Nf",
+                          "tag": "span",
+                          "text": "Button",
+                          "type": "text",
+                          "styles": {}
+                        }
+                      ],
+                      "componentName": "Button"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "el-1772523467039-1350-e8fg",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 500,
+        "left": 20,
+        "width": "280px",
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467039-1351-1ftl",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1352-tzhh",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1421-245v",
+                  "tag": "span",
+                  "text": "6",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1354-nv5r",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1422-gkfn",
+                  "tag": "span",
+                  "text": "Styling Elements",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1356-djcv",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523985308-1423-dxql",
+              "tag": "span",
+              "text": "Use the right panel tabs:",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467039-1358-x7qp",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3 space-y-2"
+          },
+          "styles": {
+            "gap": "8px",
+            "display": "flex",
+            "flexDirection": "column"
+          },
+          "children": [
+            {
+              "id": "el-1772523467039-1359-surw",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex items-center gap-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1360-f9u8",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "bg-gray-100 px-2 py-1 rounded text-xs"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1424-qmef",
+                      "tag": "span",
+                      "text": "Design",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "id": "el-1772523467039-1362-un2n",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "text-xs text-gray-500"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1425-j5jr",
+                      "tag": "span",
+                      "text": "Visual controls",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1364-e9ab",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex items-center gap-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1365-jce4",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "bg-gray-100 px-2 py-1 rounded text-xs"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1426-gotj",
+                      "tag": "span",
+                      "text": "CSS",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "id": "el-1772523467039-1367-2han",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "text-xs text-gray-500"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1427-fu3r",
+                      "tag": "span",
+                      "text": "Custom styles",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467039-1369-lrgz",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex items-center gap-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467039-1370-acka",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "bg-gray-100 px-2 py-1 rounded text-xs"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1428-nf5n",
+                      "tag": "span",
+                      "text": "Classes",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "id": "el-1772523467039-1372-gjzd",
+                  "tag": "span",
+                  "type": "html",
+                  "props": {
+                    "className": "text-xs text-gray-500"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1429-ulqz",
+                      "tag": "span",
+                      "text": "Tailwind classes",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 2040.0235640347773,
+        "y": -153.64123812112314
+      }
+    },
+    {
+      "id": "el-1772523467040-1374-te5o",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 500,
+        "left": 400,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467040-1375-1guw",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1376-4r9u",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1430-ahic",
+                  "tag": "span",
+                  "text": "7",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1378-h4eo",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1431-of2x",
+                  "tag": "span",
+                  "text": "Using AI Assistant",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1380-wwl5",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523985308-1432-xyh8",
+              "tag": "span",
+              "text": "Ask the AI to help explore components",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "id": "html-d6xYFJO2Ot-XLFzPQvGJH",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523985308-1433-bouq",
+              "tag": "span",
+              "text": "Go to Left Sidebar >",
+              "type": "text"
+            },
+            {
+              "id": "html-BN1cgyNiqQg5zojOSvF1x",
+              "tag": "span",
+              "type": "html",
+              "props": {
+                "className": "font-mono bg-white px-2 py-0.5 rounded text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1434-wah7",
+                  "tag": "span",
+                  "text": "Chat",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1382-6nzf",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1383-yr2h",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs text-gray-500 mb-1"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985308-1435-kyzj",
+                  "tag": "span",
+                  "text": "Example:",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1385-7oc7",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "flex items-center gap-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523467040-1387-gmz0",
+                  "tag": "p",
+                  "type": "html",
+                  "props": {
+                    "className": "font-mono text-xs"
+                  },
+                  "children": [
+                    {
+                      "id": "el-1772523985308-1436-j7q1",
+                      "tag": "span",
+                      "text": "\"Show all button variants\"",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 2076.536961521429,
+        "y": -157.55167027241518
+      }
+    },
+    {
+      "id": "el-1772523467040-1389-gi69",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 500,
+        "left": 780,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467040-1390-6q4j",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1391-1407",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1437-umar",
+                  "tag": "span",
+                  "text": "8",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1393-yjin",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1438-r55i",
+                  "tag": "span",
+                  "text": "Creating Components",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1395-nxuo",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523985309-1439-xxkf",
+              "tag": "span",
+              "text": "Turn elements into reusable components",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1397-1kh8",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3 space-y-1"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1398-i6m4",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1440-zedm",
+                  "tag": "span",
+                  "text": "• Right-click element",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1400-4uyg",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1441-xyhl",
+                  "tag": "span",
+                  "text": "• Select \"Create Component\"",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1402-yn3u",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1442-86kb",
+                  "tag": "span",
+                  "text": "• Name it (e.g., MyButton)",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 2102.132711732809,
+        "y": -160.0364351676745
+      }
+    },
+    {
+      "id": "el-1772523467040-1404-3asb",
+      "tag": "div",
+      "type": "html",
+      "props": {
+        "className": "bg-gray-50 border border-gray-200 rounded-lg p-6"
+      },
+      "styles": {
+        "top": 500,
+        "left": 1160,
+        "width": 280,
+        "position": "absolute"
+      },
+      "children": [
+        {
+          "id": "el-1772523467040-1405-sps5",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "flex items-center gap-3 mb-4"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1406-r2jw",
+              "tag": "div",
+              "type": "html",
+              "props": {
+                "className": "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1443-kp2e",
+                  "tag": "span",
+                  "text": "9",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1408-k72x",
+              "tag": "h3",
+              "type": "html",
+              "props": {
+                "className": "text-lg font-semibold"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1444-vbzk",
+                  "tag": "span",
+                  "text": "Save to Code",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1410-9i2f",
+          "tag": "p",
+          "type": "html",
+          "props": {
+            "className": "text-gray-600 text-sm mb-3"
+          },
+          "children": [
+            {
+              "id": "el-1772523985309-1445-vwqs",
+              "tag": "span",
+              "text": "Export components as real code",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "id": "el-1772523467040-1412-xdg4",
+          "tag": "div",
+          "type": "html",
+          "props": {
+            "className": "bg-white rounded border border-gray-200 p-3 space-y-1"
+          },
+          "children": [
+            {
+              "id": "el-1772523467040-1413-9m5v",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1446-63eu",
+                  "tag": "span",
+                  "text": "• Right-click component",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "html-GBwKWCH1-tR4yw7SuBjty",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1447-17hz",
+                  "tag": "span",
+                  "text": "• Select \"Go to main component\"",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "html-2XJHf58O38wzB2kvMRxm3",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1448-6is1",
+                  "tag": "span",
+                  "text": "• Edit as you need",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1415-5qfm",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1449-w9s1",
+                  "tag": "span",
+                  "text": "• Click \"Save to Code\"",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "html-klMhCExaPgkMpwuX98lPK",
+              "tag": "p",
+              "type": "html",
+              "props": {
+                "className": "text-xs"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1450-g93l",
+                  "tag": "span",
+                  "text": "• It will update the component code and changes will propagate to all instances",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "id": "el-1772523467040-1419-ou1c",
+              "tag": "code",
+              "type": "html",
+              "props": {
+                "className": "text-xs font-mono bg-gray-100 px-2 py-0.5 rounded block mt-2"
+              },
+              "children": [
+                {
+                  "id": "el-1772523985309-1451-g9x9",
+                  "tag": "span",
+                  "text": "components/MyButton.tsx",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "canvasPosition": {
+        "x": 2115.8479014772515,
+        "y": -157.44479866401696
+      }
+    }
+  ]
+}
