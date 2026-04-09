@@ -34,7 +34,6 @@ DEFAULT_STORES = ["Walmart", "Tractor Supply", "Amazon", "Sam's Club", "Costco"]
 DEFAULT_MEAL_COVERAGE = ["Breakfast", "Lunch", "Dinner", "Snacks"]
 DEFAULT_COOKING_STYLES = ["Easy meals", "Crockpot", "One pan", "Minimum effort"]
 DEFAULT_DIETARY_TAGS = ["Gluten free", "Dairy free", "Low carb", "Vegetarian"]
-PUBLIC_OWNER_ID = "public"
 
 
 @app.get("/health")
@@ -266,13 +265,6 @@ async def ensure_profile(owner_id: str, name: str = "Household", email: Optional
             cur.execute(f"INSERT INTO household_defaults ({columns}) VALUES ({placeholders})", values)
         conn.commit()
     return doc
-
-
-async def current_owner_profile(authorization: Optional[str]) -> Dict[str, Any]:
-    session = await get_session(authorization)
-    if session:
-        return await ensure_profile(session["user_id"], name=session.get("name", "Household"), email=session.get("email"))
-    return await ensure_profile(PUBLIC_OWNER_ID)
 
 
 def build_planner_input(config: Dict[str, Any], inventory: List[Dict[str, Any]], required: List[Dict[str, Any]], request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -780,14 +772,15 @@ async def logout(authorization: Optional[str] = Header(default=None)):
 
 @api_router.get("/profile")
 async def get_profile(authorization: Optional[str] = Header(default=None)):
-    return await current_owner_profile(authorization)
+    session = await require_session(authorization)
+    return await ensure_profile(session["user_id"], name=session.get("name", "Household"), email=session.get("email"))
 
 
 @api_router.put("/profile")
 async def update_profile(update: ProfileUpdate, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    existing = await ensure_profile(owner_id, name=session.get("name", "Household") if session else "Household", email=session.get("email") if session else None)
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
+    existing = await ensure_profile(owner_id, name=session.get("name", "Household"), email=session.get("email"))
     update_data = {k: v for k, v in update.dict().items() if v is not None}
 
     for key in (
@@ -827,20 +820,20 @@ async def update_profile(update: ProfileUpdate, authorization: Optional[str] = H
 
 @api_router.post("/profile/reset")
 async def reset_profile(authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM household_defaults WHERE owner_id = %s", (owner_id,))
         conn.commit()
-    profile = await ensure_profile(owner_id, name=session.get("name", "Household") if session else "Household", email=session.get("email") if session else None)
+    profile = await ensure_profile(owner_id, name=session.get("name", "Household"), email=session.get("email"))
     return profile
 
 
 @api_router.get("/inventory")
 async def get_inventory(location: Optional[str] = None, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             if location:
@@ -859,10 +852,10 @@ async def get_inventory(location: Optional[str] = None, authorization: Optional[
 
 @api_router.post("/inventory")
 async def add_inventory_item(item: InventoryItemCreate, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
+    session = await require_session(authorization)
     doc = {
         "id": str(uuid.uuid4()),
-        "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID,
+        "owner_id": session["user_id"],
         "name": item.name,
         "quantity": item.quantity,
         "unit": item.unit,
@@ -884,8 +877,8 @@ async def add_inventory_item(item: InventoryItemCreate, authorization: Optional[
 
 @api_router.post("/inventory/batch")
 async def add_inventory_batch(items: List[InventoryItemCreate], authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     results = []
     for item in items:
         doc = {
@@ -913,8 +906,8 @@ async def add_inventory_batch(items: List[InventoryItemCreate], authorization: O
 
 @api_router.put("/inventory/{item_id}")
 async def update_inventory_item(item_id: str, update: InventoryItemUpdate, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -941,8 +934,8 @@ async def update_inventory_item(item_id: str, update: InventoryItemUpdate, autho
 
 @api_router.delete("/inventory/{item_id}")
 async def delete_inventory_item(item_id: str, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM inventory_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
@@ -954,7 +947,8 @@ async def delete_inventory_item(item_id: str, authorization: Optional[str] = Hea
 
 
 @api_router.post("/inventory/extract-photo")
-async def extract_photo(req: PhotoExtractRequest):
+async def extract_photo(req: PhotoExtractRequest, authorization: Optional[str] = Header(default=None)):
+    await require_session(authorization)
     try:
         from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
 
@@ -1008,8 +1002,8 @@ async def extract_photo(req: PhotoExtractRequest):
 
 @api_router.get("/required-items")
 async def get_required_items(authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1022,10 +1016,10 @@ async def get_required_items(authorization: Optional[str] = Header(default=None)
 
 @api_router.post("/required-items")
 async def add_required_item(item: RequiredItemCreate, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
+    session = await require_session(authorization)
     doc = {
         "id": str(uuid.uuid4()),
-        "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID,
+        "owner_id": session["user_id"],
         "name": item.name,
         "quantity": item.quantity,
         "unit": item.unit,
@@ -1048,8 +1042,8 @@ async def add_required_item(item: RequiredItemCreate, authorization: Optional[st
 
 @api_router.put("/required-items/{item_id}")
 async def update_required_item(item_id: str, update: RequiredItemUpdate, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -1076,8 +1070,8 @@ async def update_required_item(item_id: str, update: RequiredItemUpdate, authori
 
 @api_router.delete("/required-items/{item_id}")
 async def delete_required_item(item_id: str, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM required_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
@@ -1090,9 +1084,9 @@ async def delete_required_item(item_id: str, authorization: Optional[str] = Head
 
 @api_router.post("/generate-plan")
 async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    profile = await ensure_profile(owner_id, name=session.get("name", "Household") if session else "Household", email=session.get("email") if session else None)
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
+    profile = await ensure_profile(owner_id, name=session.get("name", "Household"), email=session.get("email"))
 
     config = {**profile}
     for key, value in req.dict().items():
@@ -1166,8 +1160,8 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
 
 @api_router.get("/current-plan")
 async def get_current_plan(authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
@@ -1177,8 +1171,8 @@ async def get_current_plan(authorization: Optional[str] = Header(default=None)):
 
 @api_router.put("/current-plan")
 async def update_current_plan(body: UpdatePlanBody, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(body.plan), owner_id))
@@ -1192,8 +1186,8 @@ async def update_current_plan(body: UpdatePlanBody, authorization: Optional[str]
 
 @api_router.delete("/current-plan/recipe/{recipe_id}")
 async def remove_recipe(recipe_id: str, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
@@ -1218,8 +1212,8 @@ async def remove_recipe(recipe_id: str, authorization: Optional[str] = Header(de
 
 @api_router.post("/regenerate-recipe")
 async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
 
     with db_conn() as conn:
         with conn.cursor() as cur:
@@ -1263,8 +1257,8 @@ async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optiona
 
 @api_router.get("/history")
 async def get_history(authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1277,8 +1271,8 @@ async def get_history(authorization: Optional[str] = Header(default=None)):
 
 @api_router.post("/history/save")
 async def save_to_history(authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
 
     with db_conn() as conn:
         with conn.cursor() as cur:
@@ -1321,8 +1315,8 @@ async def save_to_history(authorization: Optional[str] = Header(default=None)):
 
 @api_router.post("/history/{history_id}/duplicate")
 async def duplicate_from_history(history_id: str, authorization: Optional[str] = Header(default=None)):
-    session = await get_session(authorization)
-    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    session = await require_session(authorization)
+    owner_id = session["user_id"]
 
     with db_conn() as conn:
         with conn.cursor() as cur:
