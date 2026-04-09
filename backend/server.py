@@ -10,19 +10,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import psycopg
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, Header, HTTPException
-from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
+from psycopg.rows import dict_row
+from psycopg.types.json import Json
 from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get("DB_NAME", "pantry_plan")]
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -40,6 +40,124 @@ PUBLIC_OWNER_ID = "public"
 @app.get("/health")
 async def healthcheck():
     return {"ok": True}
+
+
+def db_conn():
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+
+def serialize_row(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not row:
+        return None
+    data: Dict[str, Any] = {}
+    for key, value in row.items():
+        if isinstance(value, datetime):
+            data[key] = value.isoformat()
+        else:
+            data[key] = value
+    return data
+
+
+def serialize_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [serialize_row(row) or {} for row in rows]
+
+
+def init_schema():
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                  id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  email TEXT NOT NULL UNIQUE,
+                  password_hash TEXT NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS sessions (
+                  id TEXT PRIMARY KEY,
+                  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                  token TEXT NOT NULL UNIQUE,
+                  email TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS household_defaults (
+                  owner_id TEXT PRIMARY KEY,
+                  id TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  email TEXT,
+                  trip_type TEXT NOT NULL,
+                  budget DOUBLE PRECISION NOT NULL,
+                  adults INTEGER NOT NULL,
+                  children INTEGER NOT NULL,
+                  preferred_stores TEXT[] NOT NULL DEFAULT '{}',
+                  meal_coverage TEXT[] NOT NULL DEFAULT '{}',
+                  cooking_style TEXT[] NOT NULL DEFAULT '{}',
+                  dietary_rules TEXT[] NOT NULL DEFAULT '{}',
+                  exclusions TEXT NOT NULL DEFAULT '',
+                  price_mode TEXT NOT NULL DEFAULT 'No prices',
+                  household_summary TEXT NOT NULL DEFAULT '',
+                  reusable_planning_instructions TEXT NOT NULL DEFAULT '',
+                  custom_store_options TEXT[] NOT NULL DEFAULT '{}',
+                  custom_meal_coverage_options TEXT[] NOT NULL DEFAULT '{}',
+                  custom_cooking_style_options TEXT[] NOT NULL DEFAULT '{}',
+                  custom_dietary_tags TEXT[] NOT NULL DEFAULT '{}',
+                  reusable_exclusions TEXT[] NOT NULL DEFAULT '{}',
+                  planner_prompt_override TEXT NOT NULL DEFAULT '',
+                  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+                  onboarding_completed_at TIMESTAMPTZ,
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS inventory_items (
+                  id TEXT PRIMARY KEY,
+                  owner_id TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  quantity DOUBLE PRECISION NOT NULL,
+                  unit TEXT NOT NULL DEFAULT '',
+                  location TEXT NOT NULL DEFAULT 'pantry',
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS required_items (
+                  id TEXT PRIMARY KEY,
+                  owner_id TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  quantity DOUBLE PRECISION NOT NULL,
+                  unit TEXT NOT NULL DEFAULT '',
+                  note TEXT NOT NULL DEFAULT '',
+                  category TEXT NOT NULL DEFAULT 'grocery',
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS weekly_plans (
+                  id TEXT PRIMARY KEY,
+                  owner_id TEXT NOT NULL UNIQUE,
+                  plan JSONB,
+                  config JSONB,
+                  ai_input JSONB,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS weekly_history (
+                  id TEXT PRIMARY KEY,
+                  owner_id TEXT NOT NULL,
+                  plan JSONB,
+                  config JSONB,
+                  saved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                  created_at TIMESTAMPTZ
+                );
+                """
+            )
+        conn.commit()
+
+
+@app.on_event("startup")
+def startup_event():
+    init_schema()
 
 
 def utc_now() -> str:
@@ -98,10 +216,19 @@ async def get_session(authorization: Optional[str]) -> Optional[Dict[str, Any]]:
     token = authorization.replace("Bearer ", "", 1).strip()
     if not token:
         return None
-    session = await db.sessions.find_one({"token": token}, {"_id": 0})
-    if not session:
-        return None
-    return session
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, user_id, token, email, name, created_at
+                FROM sessions
+                WHERE token = %s
+                LIMIT 1
+                """,
+                (token,),
+            )
+            session = cur.fetchone()
+    return serialize_row(session)
 
 
 async def require_session(authorization: Optional[str]) -> Dict[str, Any]:
@@ -120,13 +247,24 @@ def profile_defaults(name: str = "Household", email: Optional[str] = None) -> Di
 
 
 async def ensure_profile(owner_id: str, name: str = "Household", email: Optional[str] = None) -> Dict[str, Any]:
-    profile = await db.household_profiles.find_one(owner_filter(owner_id), {"_id": 0})
-    if profile:
-        return profile
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM household_defaults WHERE owner_id = %s LIMIT 1", (owner_id,))
+            profile = cur.fetchone()
+    profile_data = serialize_row(profile)
+    if profile_data:
+        return profile_data
+
     doc = profile_defaults(name=name, email=email)
     doc["owner_id"] = owner_id
-    await db.household_profiles.insert_one(doc.copy())
-    doc.pop("_id", None)
+    columns = ", ".join(doc.keys())
+    placeholders = ", ".join(["%s"] * len(doc))
+    values = tuple(doc.values())
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"INSERT INTO household_defaults ({columns}) VALUES ({placeholders})", values)
+        conn.commit()
     return doc
 
 
@@ -271,7 +409,6 @@ async def generate_plan_with_provider(system_prompt: str, ai_input: Dict[str, An
         "Generate a weekly meal and shopping plan from this input. Return valid JSON only, no markdown.\n\n"
         f"{json.dumps(ai_input, indent=2)}"
     )
-    response_text = ""
     if os.environ.get("OPENAI_API_KEY"):
         response_text = call_openai_responses(system_prompt, prompt, "pantry_plan")
     else:
@@ -304,7 +441,6 @@ async def generate_recipe_replacement(old_recipe: Dict[str, Any], config: Dict[s
         f"Inventory on hand: {json.dumps([i['name'] for i in inventory[:30]])}\n"
         "Return valid JSON only."
     )
-    response_text = ""
     if os.environ.get("OPENAI_API_KEY"):
         response_text = call_openai_responses(system_prompt, prompt, "recipe_replacement")
     else:
@@ -556,22 +692,42 @@ The plan must feel like something a real household would actually use this week.
 @api_router.post("/auth/signup")
 async def signup(req: AuthRequest):
     email = req.email.strip().lower()
-    existing = await db.users.find_one({"email": email}, {"_id": 0})
-    if existing:
-        raise HTTPException(status_code=409, detail="Account already exists")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE email = %s LIMIT 1", (email,))
+            existing = cur.fetchone()
+            if existing:
+                raise HTTPException(status_code=409, detail="Account already exists")
+
     user_id = str(uuid.uuid4())
     user = {
         "id": user_id,
         "name": (req.name or "Household").strip() or "Household",
         "email": email,
         "password_hash": password_hash(req.password),
-        "created_at": utc_now(),
     }
-    await db.users.insert_one(user.copy())
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (id, name, email, password_hash, created_at) VALUES (%s, %s, %s, %s, %s::timestamptz)",
+                (user_id, user["name"], email, user["password_hash"], utc_now()),
+            )
+        conn.commit()
+
     await ensure_profile(user_id, name=user["name"], email=email)
+
     token = secrets.token_urlsafe(32)
-    session = {"id": str(uuid.uuid4()), "user_id": user_id, "token": token, "email": email, "name": user["name"], "created_at": utc_now()}
-    await db.sessions.insert_one(session.copy())
+    session = {"id": str(uuid.uuid4()), "user_id": user_id, "token": token, "email": email, "name": user["name"]}
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO sessions (id, user_id, token, email, name, created_at) VALUES (%s, %s, %s, %s, %s, %s::timestamptz)",
+                (session["id"], user_id, token, email, user["name"], utc_now()),
+            )
+        conn.commit()
+
     profile = await ensure_profile(user_id, name=user["name"], email=email)
     return {"token": token, "user": {"id": user_id, "name": user["name"], "email": email}, "profile": profile}
 
@@ -579,14 +735,27 @@ async def signup(req: AuthRequest):
 @api_router.post("/auth/login")
 async def login(req: AuthRequest):
     email = req.email.strip().lower()
-    user = await db.users.find_one({"email": email})
-    if not user or not verify_password(req.password, user["password_hash"]):
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, name, email, password_hash FROM users WHERE email = %s LIMIT 1", (email,))
+            user = cur.fetchone()
+
+    user_data = serialize_row(user)
+    if not user_data or not verify_password(req.password, user_data["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
     token = secrets.token_urlsafe(32)
-    session = {"id": str(uuid.uuid4()), "user_id": user["id"], "token": token, "email": email, "name": user["name"], "created_at": utc_now()}
-    await db.sessions.insert_one(session.copy())
-    profile = await ensure_profile(user["id"], name=user["name"], email=email)
-    return {"token": token, "user": {"id": user["id"], "name": user["name"], "email": email}, "profile": profile}
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO sessions (id, user_id, token, email, name, created_at) VALUES (%s, %s, %s, %s, %s, %s::timestamptz)",
+                (str(uuid.uuid4()), user_data["id"], token, email, user_data["name"], utc_now()),
+            )
+        conn.commit()
+
+    profile = await ensure_profile(user_data["id"], name=user_data["name"], email=email)
+    return {"token": token, "user": {"id": user_data["id"], "name": user_data["name"], "email": email}, "profile": profile}
 
 
 @api_router.get("/auth/me")
@@ -602,7 +771,10 @@ async def auth_me(authorization: Optional[str] = Header(default=None)):
 @api_router.post("/auth/logout")
 async def logout(authorization: Optional[str] = Header(default=None)):
     session = await require_session(authorization)
-    await db.sessions.delete_many({"token": session["token"]})
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM sessions WHERE token = %s", (session["token"],))
+        conn.commit()
     return {"success": True}
 
 
@@ -633,20 +805,34 @@ async def update_profile(update: ProfileUpdate, authorization: Optional[str] = H
             update_data[key] = normalize_list(update_data[key])
 
     if "name" in update_data and session:
-        await db.users.update_one({"id": session["user_id"]}, {"$set": {"name": update_data["name"]}})
-        await db.sessions.update_many({"user_id": session["user_id"]}, {"$set": {"name": update_data["name"]}})
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE users SET name = %s WHERE id = %s", (update_data["name"], session["user_id"]))
+                cur.execute("UPDATE sessions SET name = %s WHERE user_id = %s", (update_data["name"], session["user_id"]))
+            conn.commit()
 
     update_data["updated_at"] = utc_now()
-    await db.household_profiles.update_one(owner_filter(owner_id), {"$set": update_data}, upsert=True)
-    updated = await db.household_profiles.find_one(owner_filter(owner_id), {"_id": 0})
-    return updated or existing
+    set_fields = ", ".join([f"{key} = %s" + ("::timestamptz" if key == "onboarding_completed_at" else "") for key in update_data.keys()])
+    values: List[Any] = list(update_data.values()) + [owner_id]
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE household_defaults SET {set_fields} WHERE owner_id = %s", values)
+            cur.execute("SELECT * FROM household_defaults WHERE owner_id = %s LIMIT 1", (owner_id,))
+            updated = cur.fetchone()
+        conn.commit()
+
+    return serialize_row(updated) or existing
 
 
 @api_router.post("/profile/reset")
 async def reset_profile(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    await db.household_profiles.delete_many(owner_filter(owner_id))
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM household_defaults WHERE owner_id = %s", (owner_id,))
+        conn.commit()
     profile = await ensure_profile(owner_id, name=session.get("name", "Household") if session else "Household", email=session.get("email") if session else None)
     return profile
 
@@ -654,10 +840,21 @@ async def reset_profile(authorization: Optional[str] = Header(default=None)):
 @api_router.get("/inventory")
 async def get_inventory(location: Optional[str] = None, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    query = owner_filter(session["user_id"] if session else PUBLIC_OWNER_ID)
-    if location:
-        query["location"] = location
-    return await db.inventory_items.find(query, {"_id": 0}).to_list(1000)
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if location:
+                cur.execute(
+                    "SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE owner_id = %s AND location = %s ORDER BY created_at DESC LIMIT 1000",
+                    (owner_id, location),
+                )
+            else:
+                cur.execute(
+                    "SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE owner_id = %s ORDER BY created_at DESC LIMIT 1000",
+                    (owner_id,),
+                )
+            rows = cur.fetchall()
+    return serialize_rows(rows)
 
 
 @api_router.post("/inventory")
@@ -672,8 +869,16 @@ async def add_inventory_item(item: InventoryItemCreate, authorization: Optional[
         "location": item.location,
         "created_at": utc_now(),
     }
-    await db.inventory_items.insert_one(doc.copy())
-    doc.pop("_id", None)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inventory_items (id, owner_id, name, quantity, unit, location, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s::timestamptz)
+                """,
+                (doc["id"], doc["owner_id"], doc["name"], doc["quantity"], doc["unit"], doc["location"], doc["created_at"]),
+            )
+        conn.commit()
     return doc
 
 
@@ -692,8 +897,16 @@ async def add_inventory_batch(items: List[InventoryItemCreate], authorization: O
             "location": item.location,
             "created_at": utc_now(),
         }
-        await db.inventory_items.insert_one(doc.copy())
-        doc.pop("_id", None)
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO inventory_items (id, owner_id, name, quantity, unit, location, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::timestamptz)
+                    """,
+                    (doc["id"], doc["owner_id"], doc["name"], doc["quantity"], doc["unit"], doc["location"], doc["created_at"]),
+                )
+            conn.commit()
         results.append(doc)
     return results
 
@@ -701,20 +914,41 @@ async def add_inventory_batch(items: List[InventoryItemCreate], authorization: O
 @api_router.put("/inventory/{item_id}")
 async def update_inventory_item(item_id: str, update: InventoryItemUpdate, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    query = {"id": item_id, "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID}
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
     update_data = {k: v for k, v in update.dict().items() if v is not None}
-    result = await db.inventory_items.update_one(query, {"$set": update_data})
-    if result.matched_count == 0:
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_fields = ", ".join([f"{k} = %s" for k in update_data.keys()])
+    values = list(update_data.values()) + [item_id, owner_id]
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE inventory_items SET {set_fields} WHERE id = %s AND owner_id = %s", values)
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Item not found")
+            cur.execute(
+                "SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE id = %s AND owner_id = %s",
+                (item_id, owner_id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+
+    if not row:
         raise HTTPException(status_code=404, detail="Item not found")
-    return await db.inventory_items.find_one(query, {"_id": 0})
+    return serialize_row(row)
 
 
 @api_router.delete("/inventory/{item_id}")
 async def delete_inventory_item(item_id: str, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    query = {"id": item_id, "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID}
-    result = await db.inventory_items.delete_one(query)
-    if result.deleted_count == 0:
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM inventory_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
+            deleted = cur.rowcount
+        conn.commit()
+    if deleted == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"success": True}
 
@@ -775,7 +1009,15 @@ async def extract_photo(req: PhotoExtractRequest):
 @api_router.get("/required-items")
 async def get_required_items(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    return await db.required_items.find(owner_filter(session["user_id"] if session else PUBLIC_OWNER_ID), {"_id": 0}).to_list(1000)
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE owner_id = %s ORDER BY created_at DESC LIMIT 1000",
+                (owner_id,),
+            )
+            rows = cur.fetchall()
+    return serialize_rows(rows)
 
 
 @api_router.post("/required-items")
@@ -791,28 +1033,57 @@ async def add_required_item(item: RequiredItemCreate, authorization: Optional[st
         "category": item.category,
         "created_at": utc_now(),
     }
-    await db.required_items.insert_one(doc.copy())
-    doc.pop("_id", None)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO required_items (id, owner_id, name, quantity, unit, note, category, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s::timestamptz)
+                """,
+                (doc["id"], doc["owner_id"], doc["name"], doc["quantity"], doc["unit"], doc["note"], doc["category"], doc["created_at"]),
+            )
+        conn.commit()
     return doc
 
 
 @api_router.put("/required-items/{item_id}")
 async def update_required_item(item_id: str, update: RequiredItemUpdate, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    query = {"id": item_id, "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID}
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
     update_data = {k: v for k, v in update.dict().items() if v is not None}
-    result = await db.required_items.update_one(query, {"$set": update_data})
-    if result.matched_count == 0:
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    set_fields = ", ".join([f"{k} = %s" for k in update_data.keys()])
+    values = list(update_data.values()) + [item_id, owner_id]
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE required_items SET {set_fields} WHERE id = %s AND owner_id = %s", values)
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Item not found")
+            cur.execute(
+                "SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE id = %s AND owner_id = %s",
+                (item_id, owner_id),
+            )
+            row = cur.fetchone()
+        conn.commit()
+
+    if not row:
         raise HTTPException(status_code=404, detail="Item not found")
-    return await db.required_items.find_one(query, {"_id": 0})
+    return serialize_row(row)
 
 
 @api_router.delete("/required-items/{item_id}")
 async def delete_required_item(item_id: str, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    query = {"id": item_id, "owner_id": session["user_id"] if session else PUBLIC_OWNER_ID}
-    result = await db.required_items.delete_one(query)
-    if result.deleted_count == 0:
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM required_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
+            deleted = cur.rowcount
+        conn.commit()
+    if deleted == 0:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"success": True}
 
@@ -828,8 +1099,13 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
         if value is not None and key != "save_new_defaults":
             config[key] = value
 
-    inventory = await db.inventory_items.find(owner_filter(owner_id), {"_id": 0}).to_list(1000)
-    required = await db.required_items.find(owner_filter(owner_id), {"_id": 0}).to_list(1000)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE owner_id = %s", (owner_id,))
+            inventory = serialize_rows(cur.fetchall())
+            cur.execute("SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE owner_id = %s", (owner_id,))
+            required = serialize_rows(cur.fetchall())
+
     ai_input = build_planner_input(config, inventory, required, req.dict())
 
     if req.save_new_defaults:
@@ -843,7 +1119,11 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
             "planner_prompt_override": req.prompt_override or profile.get("planner_prompt_override", ""),
             "updated_at": utc_now(),
         }
-        await db.household_profiles.update_one(owner_filter(owner_id), {"$set": save_patch}, upsert=True)
+        set_fields = ", ".join([f"{k} = %s" for k in save_patch.keys()])
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"UPDATE household_defaults SET {set_fields} WHERE owner_id = %s", list(save_patch.values()) + [owner_id])
+            conn.commit()
 
     try:
         plan_data = await generate_plan_with_provider(PLANNER_SYSTEM_PROMPT, ai_input)
@@ -855,9 +1135,26 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
             "ai_input": ai_input,
             "created_at": utc_now(),
         }
-        await db.current_plan.delete_many(owner_filter(owner_id))
-        await db.current_plan.insert_one(plan_record.copy())
-        plan_record.pop("_id", None)
+
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM weekly_plans WHERE owner_id = %s", (owner_id,))
+                cur.execute(
+                    """
+                    INSERT INTO weekly_plans (id, owner_id, plan, config, ai_input, created_at)
+                    VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s::timestamptz)
+                    """,
+                    (
+                        plan_record["id"],
+                        owner_id,
+                        Json(plan_data),
+                        Json(plan_record["config"]),
+                        Json(ai_input),
+                        plan_record["created_at"],
+                    ),
+                )
+            conn.commit()
+
         return plan_record
     except json.JSONDecodeError:
         logger.error("Failed to parse AI plan response")
@@ -870,58 +1167,95 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
 @api_router.get("/current-plan")
 async def get_current_plan(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    plan = await db.current_plan.find_one(owner_filter(session["user_id"] if session else PUBLIC_OWNER_ID), {"_id": 0})
-    return plan or {"plan": None}
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            plan = cur.fetchone()
+    return serialize_row(plan) or {"plan": None}
 
 
 @api_router.put("/current-plan")
 async def update_current_plan(body: UpdatePlanBody, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    existing = await db.current_plan.find_one(owner_filter(owner_id))
-    if not existing:
-        raise HTTPException(status_code=404, detail="No current plan")
-    await db.current_plan.update_one({"_id": existing["_id"]}, {"$set": {"plan": body.plan}})
-    return await db.current_plan.find_one(owner_filter(owner_id), {"_id": 0})
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(body.plan), owner_id))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="No current plan")
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            updated = cur.fetchone()
+        conn.commit()
+    return serialize_row(updated)
 
 
 @api_router.delete("/current-plan/recipe/{recipe_id}")
 async def remove_recipe(recipe_id: str, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    plan_doc = await db.current_plan.find_one(owner_filter(owner_id))
-    if not plan_doc:
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            plan_doc = cur.fetchone()
+
+    plan_doc_data = serialize_row(plan_doc)
+    if not plan_doc_data:
         raise HTTPException(status_code=404, detail="No current plan")
-    plan = plan_doc.get("plan", {})
+
+    plan = plan_doc_data.get("plan", {})
     plan["selectedRecipes"] = [recipe for recipe in plan.get("selectedRecipes", []) if recipe.get("id") != recipe_id]
-    await db.current_plan.update_one({"_id": plan_doc["_id"]}, {"$set": {"plan": plan}})
-    return await db.current_plan.find_one(owner_filter(owner_id), {"_id": 0})
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(plan), owner_id))
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            updated = cur.fetchone()
+        conn.commit()
+
+    return serialize_row(updated)
 
 
 @api_router.post("/regenerate-recipe")
 async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    plan_doc = await db.current_plan.find_one(owner_filter(owner_id), {"_id": 0})
-    if not plan_doc or not plan_doc.get("plan"):
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            plan_doc = cur.fetchone()
+
+    plan_doc_data = serialize_row(plan_doc)
+    if not plan_doc_data or not plan_doc_data.get("plan"):
         raise HTTPException(status_code=404, detail="No current plan")
 
     old_recipe = None
-    for recipe in plan_doc["plan"].get("selectedRecipes", []):
+    for recipe in plan_doc_data["plan"].get("selectedRecipes", []):
         if recipe.get("id") == req.recipe_id:
             old_recipe = recipe
             break
     if not old_recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    inventory = await db.inventory_items.find(owner_filter(owner_id), {"_id": 0}).to_list(1000)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE owner_id = %s", (owner_id,))
+            inventory = serialize_rows(cur.fetchall())
+
     try:
-        new_recipe = await generate_recipe_replacement(old_recipe, plan_doc.get("config", {}), inventory, req.preference)
-        plan = plan_doc["plan"]
+        new_recipe = await generate_recipe_replacement(old_recipe, plan_doc_data.get("config", {}), inventory, req.preference)
+        plan = plan_doc_data["plan"]
         plan["selectedRecipes"] = [new_recipe if recipe.get("id") == req.recipe_id else recipe for recipe in plan.get("selectedRecipes", [])]
-        raw_doc = await db.current_plan.find_one(owner_filter(owner_id))
-        await db.current_plan.update_one({"_id": raw_doc["_id"]}, {"$set": {"plan": plan}})
-        return await db.current_plan.find_one(owner_filter(owner_id), {"_id": 0})
+
+        with db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(plan), owner_id))
+                cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+                updated = cur.fetchone()
+            conn.commit()
+
+        return serialize_row(updated)
     except Exception as exc:
         logger.error(f"Recipe regeneration error: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
@@ -930,26 +1264,58 @@ async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optiona
 @api_router.get("/history")
 async def get_history(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
-    return await db.weekly_history.find(owner_filter(session["user_id"] if session else PUBLIC_OWNER_ID), {"_id": 0}).sort("created_at", -1).to_list(50)
+    owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, owner_id, plan, config, saved_at, created_at FROM weekly_history WHERE owner_id = %s ORDER BY created_at DESC NULLS LAST LIMIT 50",
+                (owner_id,),
+            )
+            rows = cur.fetchall()
+    return serialize_rows(rows)
 
 
 @api_router.post("/history/save")
 async def save_to_history(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    plan = await db.current_plan.find_one(owner_filter(owner_id), {"_id": 0})
-    if not plan:
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
+            plan = cur.fetchone()
+
+    plan_data = serialize_row(plan)
+    if not plan_data:
         raise HTTPException(status_code=404, detail="No current plan to save")
+
     history_entry = {
         "id": str(uuid.uuid4()),
         "owner_id": owner_id,
-        "plan": plan.get("plan"),
-        "config": plan.get("config"),
+        "plan": plan_data.get("plan"),
+        "config": plan_data.get("config"),
         "saved_at": utc_now(),
-        "created_at": plan.get("created_at"),
+        "created_at": plan_data.get("created_at"),
     }
-    await db.weekly_history.insert_one(history_entry.copy())
-    history_entry.pop("_id", None)
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO weekly_history (id, owner_id, plan, config, saved_at, created_at)
+                VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::timestamptz, %s::timestamptz)
+                """,
+                (
+                    history_entry["id"],
+                    owner_id,
+                    Json(history_entry["plan"]),
+                    Json(history_entry["config"]),
+                    history_entry["saved_at"],
+                    history_entry["created_at"],
+                ),
+            )
+        conn.commit()
+
     return history_entry
 
 
@@ -957,19 +1323,39 @@ async def save_to_history(authorization: Optional[str] = Header(default=None)):
 async def duplicate_from_history(history_id: str, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
-    entry = await db.weekly_history.find_one({"id": history_id, "owner_id": owner_id}, {"_id": 0})
-    if not entry:
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, owner_id, plan, config, saved_at, created_at FROM weekly_history WHERE id = %s AND owner_id = %s LIMIT 1",
+                (history_id, owner_id),
+            )
+            entry = cur.fetchone()
+
+    entry_data = serialize_row(entry)
+    if not entry_data:
         raise HTTPException(status_code=404, detail="History entry not found")
+
     plan_record = {
         "id": str(uuid.uuid4()),
         "owner_id": owner_id,
-        "plan": entry.get("plan"),
-        "config": entry.get("config"),
+        "plan": entry_data.get("plan"),
+        "config": entry_data.get("config"),
         "created_at": utc_now(),
     }
-    await db.current_plan.delete_many(owner_filter(owner_id))
-    await db.current_plan.insert_one(plan_record.copy())
-    plan_record.pop("_id", None)
+
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM weekly_plans WHERE owner_id = %s", (owner_id,))
+            cur.execute(
+                """
+                INSERT INTO weekly_plans (id, owner_id, plan, config, ai_input, created_at)
+                VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s::timestamptz)
+                """,
+                (plan_record["id"], owner_id, Json(plan_record["plan"]), Json(plan_record["config"]), Json({}), plan_record["created_at"]),
+            )
+        conn.commit()
+
     return plan_record
 
 
@@ -986,4 +1372,4 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    return None
