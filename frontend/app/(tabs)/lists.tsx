@@ -78,7 +78,7 @@ export default function Lists() {
             <View style={s.empty}>
               <View style={s.emptyIconWrap}><Ionicons name="cart-outline" size={28} color={Colors.border} /></View>
               <Text style={s.emptyTitle}>No required items</Text>
-              <Text style={s.emptyBody}>Add items you know you need this week — they'll be included in your generated grocery list.</Text>
+              <Text style={s.emptyBody}>Add items you know you need this week and they&apos;ll be included in your generated grocery list.</Text>
             </View>
           ) : requiredItems.map(item => (
             <View key={item.id} style={s.itemCard} testID={`required-item-${item.id}`}>
@@ -101,7 +101,7 @@ export default function Lists() {
             <View style={s.empty}>
               <View style={s.emptyIconWrap}><Ionicons name="receipt-outline" size={28} color={Colors.border} /></View>
               <Text style={s.emptyTitle}>No plan generated yet</Text>
-              <Text style={s.emptyBody}>Head to "This Week" and tap "Build This Week's Plan" to generate your grocery and household lists.</Text>
+              <Text style={s.emptyBody}>Head to &quot;This Week&quot; and tap &quot;Build This Week&apos;s Plan&quot; to generate your grocery and household lists.</Text>
             </View>
           ) : (
             <>

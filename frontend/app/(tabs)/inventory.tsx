@@ -115,7 +115,7 @@ export default function Inventory() {
           <View style={s.empty}>
             <View style={s.emptyIconWrap}><Ionicons name={LOC_ICONS[tab] as any} size={32} color={Colors.border} /></View>
             <Text style={s.emptyTitle}>Your {tab} is empty</Text>
-            <Text style={s.emptyBody}>Add items manually or snap a photo to auto-detect what's inside.</Text>
+            <Text style={s.emptyBody}>Add items manually or snap a photo to auto-detect what&apos;s inside.</Text>
           </View>
         ) : (
           <FlatList data={items} keyExtractor={i => i.id} renderItem={renderItem} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} />
