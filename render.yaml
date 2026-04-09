@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: diana-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DB_NAME
+        value: pantry_plan
+      - key: MONGO_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

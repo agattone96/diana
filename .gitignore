@@ -83,3 +83,12 @@ android-sdk/-e
 # Environment files
 *.env
 *.env.*
+
+# Expo / React Native (local)
+.expo/
+.expo-shared/
+
+# Local Netlify folder
+.netlify
+
+frontend/.metro-cache

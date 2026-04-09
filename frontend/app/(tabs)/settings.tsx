@@ -1,22 +1,33 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, ActivityIndicator, Alert, SafeAreaView, KeyboardAvoidingView, Platform,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Shadows } from '../../src/utils/theme';
 import CompactChipSelector from '../../src/components/CompactChipSelector';
 import NumberStepper from '../../src/components/NumberStepper';
+import { useAppSession } from '../../src/context/AppSessionContext';
+import {
+  DEFAULT_COOKING_STYLES,
+  DEFAULT_DIETARY_RULES,
+  DEFAULT_MEAL_COVERAGE,
+  DEFAULT_STORES,
+} from '../../src/data/options';
+import { useResponsive } from '../../src/hooks/useResponsive';
 import { api } from '../../src/utils/api';
-
-const STORES = ['Walmart', 'Tractor Supply', 'Amazon', "Sam's Club", 'Costco', 'Aldi', 'Target', 'Kroger'];
-const MEAL_COVERAGE = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
-const COOKING_STYLES = ['Easy meals', 'Crockpot', 'One pan', 'Sheet pan', 'Minimum effort', 'Batch cook', 'Air fryer', 'Instant pot'];
-const DIETARY_RULES = ['Gluten free', 'Dairy free', 'Low carb', 'Vegetarian', 'Vegan', 'Keto', 'Nut free', 'Low sodium'];
+import { Colors, Shadows } from '../../src/utils/theme';
 
 function Label({ children }: { children: string }) {
-  return <Text style={s.fieldLabel}>{children}</Text>;
+  return <Text style={s.label}>{children}</Text>;
 }
+
 function timeAgo(d: string): string {
   const ms = Date.now() - new Date(d).getTime();
   const m = Math.floor(ms / 60000);
@@ -28,188 +39,241 @@ function timeAgo(d: string): string {
 }
 
 export default function Settings() {
+  const { refreshProfile, setProfile, profile } = useAppSession();
+  const { contentMaxWidth, columns, gutter } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
-  const [adults, setAdults] = useState(4);
-  const [children, setChildren] = useState(1);
+  const [name, setName] = useState(profile?.name || '');
+  const [adults, setAdults] = useState(profile?.adults ?? 4);
+  const [children, setChildren] = useState(profile?.children ?? 0);
   const [stores, setStores] = useState<string[]>([]);
   const [meals, setMeals] = useState<string[]>([]);
   const [cookingStyle, setCookingStyle] = useState<string[]>([]);
   const [dietaryRules, setDietaryRules] = useState<string[]>([]);
   const [exclusions, setExclusions] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [customStores, setCustomStores] = useState<string[]>([]);
+  const [customMeals, setCustomMeals] = useState<string[]>([]);
+  const [customCooking, setCustomCooking] = useState<string[]>([]);
+  const [customDietary, setCustomDietary] = useState<string[]>([]);
+  const [reusableExclusions, setReusableExclusions] = useState<string[]>([]);
+  const [storeInput, setStoreInput] = useState('');
+  const [mealInput, setMealInput] = useState('');
+  const [cookingInput, setCookingInput] = useState('');
+  const [dietaryInput, setDietaryInput] = useState('');
+  const [exclusionInput, setExclusionInput] = useState('');
 
   const loadData = useCallback(async () => {
     try {
-      const [profile, hist] = await Promise.all([api.getProfile(), api.getHistory()]);
-      if (profile) {
-        setAdults(profile.adults ?? 4);
-        setChildren(profile.children ?? 1);
-        setStores(profile.preferred_stores || []);
-        setMeals(profile.meal_coverage || []);
-        setCookingStyle(profile.cooking_style || []);
-        setDietaryRules(profile.dietary_rules || []);
-        setExclusions(profile.exclusions || '');
-      }
+      const [nextProfile, hist] = await Promise.all([api.getProfile(), api.getHistory()]);
+      setProfile(nextProfile);
+      setName(nextProfile.name || '');
+      setAdults(nextProfile.adults ?? 4);
+      setChildren(nextProfile.children ?? 0);
+      setStores(nextProfile.preferred_stores || []);
+      setMeals(nextProfile.meal_coverage || []);
+      setCookingStyle(nextProfile.cooking_style || []);
+      setDietaryRules(nextProfile.dietary_rules || []);
+      setExclusions(nextProfile.exclusions || '');
+      setInstructions(nextProfile.reusable_planning_instructions || '');
+      setCustomStores(nextProfile.custom_store_options || []);
+      setCustomMeals(nextProfile.custom_meal_coverage_options || []);
+      setCustomCooking(nextProfile.custom_cooking_style_options || []);
+      setCustomDietary(nextProfile.custom_dietary_tags || []);
+      setReusableExclusions(nextProfile.reusable_exclusions || []);
       setHistory(hist || []);
       setDirty(false);
-    } catch (e) { console.error('Load settings:', e); }
-    finally { setLoading(false); }
-  }, []);
+    } catch (e) {
+      console.error('Load settings', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [setProfile]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const allStores = useMemo(() => [...DEFAULT_STORES, ...customStores], [customStores]);
+  const allMeals = useMemo(() => [...DEFAULT_MEAL_COVERAGE, ...customMeals], [customMeals]);
+  const allCookingStyles = useMemo(() => [...DEFAULT_COOKING_STYLES, ...customCooking], [customCooking]);
+  const allDietary = useMemo(() => [...DEFAULT_DIETARY_RULES, ...customDietary], [customDietary]);
 
   const mark = () => setDirty(true);
-  const toggle = (list: string[], set: (v: string[]) => void, item: string) => {
-    set(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
+  const toggle = (list: string[], setter: (v: string[]) => void, item: string) => {
+    setter(list.includes(item) ? list.filter((entry) => entry !== item) : [...list, item]);
+    mark();
+  };
+
+  const addOption = (value: string, current: string[], setter: (v: string[]) => void) => {
+    const clean = value.trim();
+    if (!clean || current.includes(clean)) return;
+    setter([...current, clean]);
     mark();
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.updateProfile({ adults, children, preferred_stores: stores, meal_coverage: meals, cooking_style: cookingStyle, dietary_rules: dietaryRules, exclusions });
+      const updated = await api.updateProfile({
+        name,
+        adults,
+        children,
+        preferred_stores: stores,
+        meal_coverage: meals,
+        cooking_style: cookingStyle,
+        dietary_rules: dietaryRules,
+        exclusions,
+        reusable_planning_instructions: instructions,
+        custom_store_options: customStores,
+        custom_meal_coverage_options: customMeals,
+        custom_cooking_style_options: customCooking,
+        custom_dietary_tags: customDietary,
+        reusable_exclusions: reusableExclusions,
+      });
+      setProfile(updated);
       setDirty(false);
-      Alert.alert('Saved', 'Household defaults updated. These will pre-fill every new weekly plan.');
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setSaving(false); }
+      Alert.alert('Saved', 'Household defaults updated.');
+    } catch (e: any) {
+      Alert.alert('Save failed', e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleReset = () => {
-    Alert.alert('Reset to Factory Defaults?', '4 adults, 1 child, all default stores & styles.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', style: 'destructive', onPress: async () => {
-        try {
-          const p = await api.resetProfile();
-          setAdults(p.adults); setChildren(p.children); setStores(p.preferred_stores);
-          setMeals(p.meal_coverage); setCookingStyle(p.cooking_style);
-          setDietaryRules(p.dietary_rules); setExclusions(p.exclusions); setDirty(false);
-        } catch (e: any) { Alert.alert('Error', e.message); }
-      }},
-    ]);
+  const handleReset = async () => {
+    try {
+      const reset = await api.resetProfile();
+      setProfile(reset);
+      await refreshProfile();
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Reset failed', e.message);
+    }
   };
 
-  const handleSaveToHistory = async () => {
-    try { await api.saveToHistory(); const h = await api.getHistory(); setHistory(h); Alert.alert('Saved', 'Current week bookmarked.'); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+  const handleSaveHistory = async () => {
+    try {
+      await api.saveToHistory();
+      const hist = await api.getHistory();
+      setHistory(hist);
+    } catch (e: any) {
+      Alert.alert('Could not save week', e.message);
+    }
   };
 
-  const handleDuplicate = (id: string) => {
-    Alert.alert('Reuse This Plan?', 'Replaces your current weekly plan.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reuse', onPress: async () => {
-        try { await api.duplicateFromHistory(id); Alert.alert('Done', 'Plan loaded.'); }
-        catch (e: any) { Alert.alert('Error', e.message); }
-      }},
-    ]);
+  const handleReuse = async (id: string) => {
+    try {
+      await api.duplicateFromHistory(id);
+      Alert.alert('Copied', 'Saved week copied back into the active planner.');
+    } catch (e: any) {
+      Alert.alert('Could not reuse', e.message);
+    }
   };
 
-  if (loading) return <SafeAreaView style={s.safe}><View style={s.center}><ActivityIndicator size="large" color={Colors.primary} /><Text style={s.loadHint}>Loading profile...</Text></View></SafeAreaView>;
+  if (loading) return <SafeAreaView style={s.safe}><View style={s.center}><ActivityIndicator size="large" color={Colors.primary} /></View></SafeAreaView>;
 
   return (
     <SafeAreaView style={s.safe}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={s.scrollInner} showsVerticalScrollIndicator={false}>
-
-          {/* Header */}
+      <ScrollView contentContainerStyle={{ padding: gutter }}>
+        <View style={[s.wrap, { maxWidth: contentMaxWidth }]}>
           <View style={s.header}>
-            <View style={s.headerBadge}><Ionicons name="home" size={20} color={Colors.primary} /></View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.headerTitle}>Household Profile</Text>
-              <Text style={s.headerHint}>Defaults that pre-fill every weekly plan</Text>
-            </View>
-            {dirty && <View style={s.dirtyBadge}><Text style={s.dirtyText}>Unsaved</Text></View>}
+            <Text style={s.title}>Settings</Text>
+            <Text style={s.subtitle}>Saved household defaults, reusable options, and weekly history.</Text>
           </View>
 
-          {/* Card 1 — Household Defaults */}
-          <View style={s.card}>
-            <View style={s.cardHead}><Ionicons name="people-outline" size={15} color={Colors.primary} /><Text style={s.cardTitle}>Household Defaults</Text></View>
-            <View style={s.stepperBlock}>
-              <NumberStepper label="Adults" hint="Ages 13+" value={adults} onIncrement={() => { setAdults(a => Math.min(a+1,20)); mark(); }} onDecrement={() => { setAdults(a => Math.max(a-1,1)); mark(); }} min={1} testID="settings-adults" />
-            </View>
-            <View style={s.stepperBlock}>
-              <NumberStepper label="Children" hint="Under 13" value={children} onIncrement={() => { setChildren(c => Math.min(c+1,20)); mark(); }} onDecrement={() => { setChildren(c => Math.max(c-1,0)); mark(); }} min={0} testID="settings-children" />
-            </View>
-          </View>
-
-          {/* Card 2 — Shopping Defaults */}
-          <View style={s.card}>
-            <View style={s.cardHead}><Ionicons name="cart-outline" size={15} color={Colors.primary} /><Text style={s.cardTitle}>Shopping Defaults</Text></View>
-            <Label>Stores</Label>
-            <CompactChipSelector options={STORES} selected={stores} onToggle={(st) => toggle(stores, setStores, st)} testIDPrefix="settings-store" />
-            <View style={s.divider} />
-            <Label>Meal coverage</Label>
-            <CompactChipSelector options={MEAL_COVERAGE} selected={meals} onToggle={(m) => toggle(meals, setMeals, m)} testIDPrefix="settings-meal" />
-            <View style={s.divider} />
-            <Label>Cooking style</Label>
-            <CompactChipSelector options={COOKING_STYLES} selected={cookingStyle} onToggle={(c) => toggle(cookingStyle, setCookingStyle, c)} testIDPrefix="settings-cooking" />
-          </View>
-
-          {/* Card 3 — Food Rules */}
-          <View style={s.card}>
-            <View style={s.cardHead}><Ionicons name="nutrition-outline" size={15} color={Colors.primary} /><Text style={s.cardTitle}>Food Rules</Text></View>
-            <Label>Dietary restrictions</Label>
-            {dietaryRules.length === 0 && <Text style={s.hintText}>None active — tap to add</Text>}
-            <CompactChipSelector options={DIETARY_RULES} selected={dietaryRules} onToggle={(d) => toggle(dietaryRules, setDietaryRules, d)} testIDPrefix="settings-dietary" />
-            <View style={s.divider} />
-            <Label>Exclusions & dislikes</Label>
-            <TextInput testID="settings-exclusions" style={s.textInput} value={exclusions} onChangeText={(t) => { setExclusions(t); mark(); }} placeholder="e.g. mushrooms, cilantro" placeholderTextColor={Colors.textLight} multiline />
-          </View>
-
-          {/* Card 4 — Weekly History */}
-          <View style={s.card}>
-            <View style={s.cardHead}><Ionicons name="time-outline" size={15} color={Colors.primary} /><Text style={s.cardTitle}>Weekly History</Text></View>
-            <TouchableOpacity testID="save-history-btn" style={s.bookmarkBtn} onPress={handleSaveToHistory} activeOpacity={0.7}>
-              <Ionicons name="bookmark-outline" size={15} color={Colors.primary} />
-              <Text style={s.bookmarkText}>Save current week to history</Text>
-              <Ionicons name="chevron-forward" size={13} color={Colors.textLight} />
-            </TouchableOpacity>
-            {history.length === 0 ? (
-              <View style={s.emptyHist}>
-                <View style={s.emptyIcon}><Ionicons name="albums-outline" size={26} color={Colors.border} /></View>
-                <Text style={s.emptyTitle}>No saved weeks</Text>
-                <Text style={s.emptyBody}>Generate a plan, then save it here to reuse later.</Text>
-              </View>
-            ) : history.map((entry: any, idx: number) => {
-              const recipes = entry.plan?.selectedRecipes || [];
-              const dt = entry.saved_at || entry.created_at;
-              return (
-                <View key={entry.id} style={[s.histRow, idx === history.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]} testID={`history-card-${entry.id}`}>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.histDateRow}>
-                      <Text style={s.histDate}>{new Date(dt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Text>
-                      <Text style={s.histAgo}>{timeAgo(dt)}</Text>
-                    </View>
-                    <View style={s.histMeta}>
-                      <Text style={s.histChip}>{recipes.length} meals</Text>
-                      {entry.config?.adults != null && <Text style={s.histChip}>{entry.config.adults}A {entry.config.children || 0}C</Text>}
-                      {entry.config?.budget != null && <Text style={s.histChip}>${entry.config.budget}</Text>}
-                    </View>
-                  </View>
-                  <TouchableOpacity testID={`duplicate-${entry.id}`} style={s.reuseBtn} onPress={() => handleDuplicate(entry.id)} activeOpacity={0.7}>
-                    <Ionicons name="arrow-redo-outline" size={14} color={Colors.primary} />
-                    <Text style={s.reuseText}>Reuse</Text>
-                  </TouchableOpacity>
+          <View style={[s.grid, columns === 2 && s.gridDesktop]}>
+            <View style={s.column}>
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Household Defaults</Text>
+                <Text style={s.cardSubtitle}>People count and baseline household details.</Text>
+                <Label>Household name</Label>
+                <TextInput style={s.input} value={name} onChangeText={(value) => { setName(value); mark(); }} placeholder="Household name" placeholderTextColor={Colors.textLight} />
+                <View style={columns === 2 ? s.stepperRow : undefined}>
+                  <View style={s.stepperCell}><NumberStepper value={adults} onIncrement={() => { setAdults((v) => v + 1); mark(); }} onDecrement={() => { setAdults((v) => Math.max(1, v - 1)); mark(); }} testID="settings-adults" label="Adults" /></View>
+                  <View style={s.stepperCell}><NumberStepper value={children} onIncrement={() => { setChildren((v) => v + 1); mark(); }} onDecrement={() => { setChildren((v) => Math.max(0, v - 1)); mark(); }} testID="settings-children" label="Children" /></View>
                 </View>
-              );
-            })}
+              </View>
+
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Shopping Defaults</Text>
+                <Text style={s.cardSubtitle}>Default stores, meal coverage, and cooking style.</Text>
+                <Label>Stores</Label>
+                <CompactChipSelector options={allStores} selected={stores} onToggle={(item) => toggle(stores, setStores, item)} testIDPrefix="settings-store" />
+                <View style={s.addRow}><TextInput style={s.inlineInput} value={storeInput} onChangeText={setStoreInput} placeholder="Add custom store" placeholderTextColor={Colors.textLight} /><TouchableOpacity style={s.addBtn} onPress={() => { addOption(storeInput, customStores, setCustomStores); setStoreInput(''); }}><Text style={s.addBtnText}>Add</Text></TouchableOpacity></View>
+
+                <Label>Meal coverage</Label>
+                <CompactChipSelector options={allMeals} selected={meals} onToggle={(item) => toggle(meals, setMeals, item)} testIDPrefix="settings-meal" />
+                <View style={s.addRow}><TextInput style={s.inlineInput} value={mealInput} onChangeText={setMealInput} placeholder="Add meal coverage" placeholderTextColor={Colors.textLight} /><TouchableOpacity style={s.addBtn} onPress={() => { addOption(mealInput, customMeals, setCustomMeals); setMealInput(''); }}><Text style={s.addBtnText}>Add</Text></TouchableOpacity></View>
+
+                <Label>Cooking style</Label>
+                <CompactChipSelector options={allCookingStyles} selected={cookingStyle} onToggle={(item) => toggle(cookingStyle, setCookingStyle, item)} testIDPrefix="settings-cooking" />
+                <View style={s.addRow}><TextInput style={s.inlineInput} value={cookingInput} onChangeText={setCookingInput} placeholder="Add cooking style" placeholderTextColor={Colors.textLight} /><TouchableOpacity style={s.addBtn} onPress={() => { addOption(cookingInput, customCooking, setCustomCooking); setCookingInput(''); }}><Text style={s.addBtnText}>Add</Text></TouchableOpacity></View>
+              </View>
+            </View>
+
+            <View style={s.column}>
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Food Rules</Text>
+                <Text style={s.cardSubtitle}>Dietary defaults, exclusions, and reusable planning instructions.</Text>
+                <Label>Dietary defaults</Label>
+                <CompactChipSelector options={allDietary} selected={dietaryRules} onToggle={(item) => toggle(dietaryRules, setDietaryRules, item)} testIDPrefix="settings-dietary" />
+                <View style={s.addRow}><TextInput style={s.inlineInput} value={dietaryInput} onChangeText={setDietaryInput} placeholder="Add dietary tag" placeholderTextColor={Colors.textLight} /><TouchableOpacity style={s.addBtn} onPress={() => { addOption(dietaryInput, customDietary, setCustomDietary); setDietaryInput(''); }}><Text style={s.addBtnText}>Add</Text></TouchableOpacity></View>
+
+                <Label>Reusable exclusions</Label>
+                <View style={s.addRow}><TextInput style={s.inlineInput} value={exclusionInput} onChangeText={setExclusionInput} placeholder="Add exclusion" placeholderTextColor={Colors.textLight} /><TouchableOpacity style={s.addBtn} onPress={() => { addOption(exclusionInput, reusableExclusions, setReusableExclusions); setExclusionInput(''); }}><Text style={s.addBtnText}>Add</Text></TouchableOpacity></View>
+                {!!reusableExclusions.length && (
+                  <View style={s.savedRow}>
+                    {reusableExclusions.map((item) => (
+                      <View key={item} style={s.savedChip}><Text style={s.savedChipText}>{item}</Text></View>
+                    ))}
+                  </View>
+                )}
+
+                <Label>Exclusions</Label>
+                <TextInput style={s.textArea} multiline value={exclusions} onChangeText={(value) => { setExclusions(value); mark(); }} placeholder="Household exclusions and recurring avoids" placeholderTextColor={Colors.textLight} />
+                <Label>Reusable planning instructions</Label>
+                <TextInput style={s.textArea} multiline value={instructions} onChangeText={(value) => { setInstructions(value); mark(); }} placeholder="Default notes for future AI planning" placeholderTextColor={Colors.textLight} />
+              </View>
+
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Weekly History</Text>
+                <Text style={s.cardSubtitle}>Save and reuse weekly plans.</Text>
+                <TouchableOpacity style={s.historySaveBtn} onPress={handleSaveHistory}>
+                  <Ionicons name="bookmark-outline" size={16} color={Colors.primary} />
+                  <Text style={s.historySaveText}>Save current week to history</Text>
+                </TouchableOpacity>
+
+                {!history.length ? (
+                  <View style={s.emptyState}>
+                    <Text style={s.emptyTitle}>No saved weeks yet</Text>
+                    <Text style={s.emptyBody}>When you save a week, it will appear here for reuse.</Text>
+                  </View>
+                ) : history.map((item) => (
+                  <View key={item.id} style={s.histRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.histDate}>{new Date(item.saved_at || item.created_at).toLocaleDateString()}</Text>
+                      <Text style={s.histAgo}>{timeAgo(item.saved_at || item.created_at)}</Text>
+                    </View>
+                    <TouchableOpacity style={s.reuseBtn} onPress={() => handleReuse(item.id)}>
+                      <Text style={s.reuseText}>Reuse</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
           </View>
+        </View>
+      </ScrollView>
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* Sticky Actions */}
       <View style={s.actionBar}>
-        <TouchableOpacity testID="reset-settings-btn" style={s.resetBtn} onPress={handleReset} activeOpacity={0.7}>
-          <Ionicons name="refresh-outline" size={15} color={Colors.danger} />
+        <TouchableOpacity style={s.resetBtn} onPress={handleReset}>
           <Text style={s.resetText}>Reset</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="save-settings-btn" style={[s.saveBtn, !dirty && s.saveBtnOff]} onPress={handleSave} disabled={saving || !dirty} activeOpacity={0.8}>
-          {saving ? <ActivityIndicator size="small" color="#FFF" /> : (
-            <><Ionicons name="checkmark-circle-outline" size={17} color="#FFF" /><Text style={s.saveText}>{dirty ? 'Save Defaults' : 'Saved'}</Text></>
-          )}
+        <TouchableOpacity style={[s.saveBtn, (!dirty || saving) && s.saveBtnOff]} onPress={handleSave} disabled={!dirty || saving}>
+          <Text style={s.saveText}>{saving ? 'Saving...' : 'Save Defaults'}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -219,47 +283,42 @@ export default function Settings() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadHint: { fontSize: 13, color: Colors.textMuted, marginTop: 8 },
-  scrollInner: { padding: 20, paddingTop: 12 },
-
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  headerBadge: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.primaryMuted, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 21, fontWeight: '700', color: Colors.textMain, letterSpacing: -0.3 },
-  headerHint: { fontSize: 12.5, color: Colors.textMuted, marginTop: 2 },
-  dirtyBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 6, backgroundColor: Colors.warning + '20' },
-  dirtyText: { fontSize: 10, fontWeight: '700', color: Colors.warning, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  card: { backgroundColor: Colors.surface, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: Colors.border, ...Shadows.sm },
-  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: Colors.textMain },
-
-  fieldLabel: { fontSize: 10.5, fontWeight: '700', color: Colors.textMuted, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 8 },
-  hintText: { fontSize: 12, color: Colors.textLight, fontStyle: 'italic', marginBottom: 6 },
-  stepperBlock: { marginBottom: 10 },
-  divider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 14 },
-  textInput: { backgroundColor: Colors.surfaceMuted, borderRadius: 10, padding: 14, fontSize: 14, color: Colors.textMain, minHeight: 44, textAlignVertical: 'top' },
-
-  bookmarkBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 12, backgroundColor: Colors.primaryMuted, borderRadius: 10, marginBottom: 14 },
-  bookmarkText: { flex: 1, fontSize: 13, fontWeight: '600', color: Colors.primary },
-
-  emptyHist: { alignItems: 'center', paddingVertical: 20 },
-  emptyIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  emptyTitle: { fontSize: 14, fontWeight: '600', color: Colors.textMuted },
-  emptyBody: { fontSize: 12, color: Colors.textLight, textAlign: 'center', marginTop: 4, lineHeight: 17, maxWidth: 220 },
-
-  histRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 12, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  histDateRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  wrap: { width: '100%', alignSelf: 'center', paddingBottom: 120, gap: 16 },
+  header: { gap: 8 },
+  title: { fontSize: 32, fontWeight: '800', color: Colors.textMain },
+  subtitle: { fontSize: 15, lineHeight: 22, color: Colors.textMuted, maxWidth: 760 },
+  grid: { gap: 16 },
+  gridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  column: { flex: 1, gap: 16 },
+  card: { backgroundColor: Colors.surface, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: Colors.border, ...Shadows.sm },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: Colors.textMain },
+  cardSubtitle: { fontSize: 13, color: Colors.textMuted, marginTop: 4, marginBottom: 14, lineHeight: 19 },
+  label: { fontSize: 11, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 14, marginBottom: 10 },
+  input: { backgroundColor: Colors.surfaceMuted, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textMain, fontSize: 14 },
+  textArea: { minHeight: 88, backgroundColor: Colors.surfaceMuted, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textMain, fontSize: 14, textAlignVertical: 'top' },
+  stepperRow: { flexDirection: 'row', gap: 12, marginTop: 6 },
+  stepperCell: { flex: 1 },
+  addRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  inlineInput: { flex: 1, backgroundColor: Colors.surfaceMuted, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textMain, fontSize: 14 },
+  addBtn: { backgroundColor: Colors.primary, borderRadius: 12, justifyContent: 'center', paddingHorizontal: 16 },
+  addBtnText: { color: '#FFF', fontWeight: '700' },
+  savedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  savedChip: { backgroundColor: Colors.primaryMuted, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  savedChipText: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
+  historySaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.primaryLight, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  historySaveText: { color: Colors.primary, fontWeight: '700' },
+  emptyState: { alignItems: 'center', paddingVertical: 24 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: Colors.textMuted },
+  emptyBody: { fontSize: 13, color: Colors.textLight, marginTop: 6, textAlign: 'center', lineHeight: 19, maxWidth: 260 },
+  histRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   histDate: { fontSize: 14, fontWeight: '700', color: Colors.textMain },
-  histAgo: { fontSize: 10, fontWeight: '600', color: Colors.textLight, backgroundColor: Colors.surfaceMuted, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
-  histMeta: { flexDirection: 'row', gap: 5 },
-  histChip: { fontSize: 11, color: Colors.textMuted, backgroundColor: Colors.background, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  reuseBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: Colors.primaryMuted },
-  reuseText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
-
-  actionBar: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingVertical: 10, paddingBottom: Platform.OS === 'ios' ? 28 : 10, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  resetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 18, paddingVertical: 13, borderRadius: 12, backgroundColor: Colors.dangerMuted, borderWidth: 1, borderColor: Colors.danger + '20' },
-  resetText: { fontSize: 13, fontWeight: '600', color: Colors.danger },
-  saveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: Colors.primary },
-  saveBtnOff: { opacity: 0.5 },
-  saveText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
+  histAgo: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  reuseBtn: { backgroundColor: Colors.surfaceMuted, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  reuseText: { color: Colors.primary, fontWeight: '700' },
+  actionBar: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.surface },
+  resetBtn: { borderRadius: 14, paddingHorizontal: 18, justifyContent: 'center', backgroundColor: Colors.dangerMuted },
+  resetText: { color: Colors.danger, fontWeight: '700' },
+  saveBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: 14, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+  saveBtnOff: { opacity: 0.45 },
+  saveText: { color: '#FFF', fontWeight: '800' },
 });

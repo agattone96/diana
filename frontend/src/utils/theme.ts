@@ -1,8 +1,10 @@
 export const Colors = {
   background: '#F7F5F0',
+  backgroundWarm: '#F3EFE5',
   surface: '#FFFFFF',
   surfaceMuted: '#EFEBE1',
   surfaceRaised: '#FAFAF7',
+  surfaceTint: '#FBF8F3',
   primary: '#2C5530',
   primaryMuted: '#2C553018',
   primaryLight: '#E8F0E9',
@@ -13,6 +15,7 @@ export const Colors = {
   textSecondary: '#444444',
   textMuted: '#8A8880',
   textLight: '#B0ADA6',
+  textInverse: '#FFFDF9',
   border: '#E8E4DC',
   borderLight: '#F0ECE4',
   success: '#4A7C59',

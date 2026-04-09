@@ -1,9 +1,14 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Shadows } from '../../src/utils/theme';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
+import { useAppSession } from '../../src/context/AppSessionContext';
 
 export default function TabLayout() {
+  const { token, profile } = useAppSession();
+  if (!token) return <Redirect href="/" />;
+  if (!profile?.onboarding_completed) return <Redirect href="/onboarding" />;
+
   return (
     <Tabs
       screenOptions={{
@@ -15,7 +20,7 @@ export default function TabLayout() {
           borderTopColor: Colors.borderLight,
           borderTopWidth: 1,
           paddingTop: 8,
-          height: Platform.OS === 'ios' ? 84 : 62,
+          height: Platform.OS === 'ios' ? 84 : 68,
           paddingBottom: Platform.OS === 'ios' ? 26 : 8,
           ...Shadows.sm,
         },
