@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import psycopg
 import requests
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, Header, HTTPException
-import psycopg
 from pydantic import BaseModel, Field
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
@@ -254,11 +254,13 @@ async def ensure_profile(owner_id: str, name: str = "Household", email: Optional
     profile_data = serialize_row(profile)
     if profile_data:
         return profile_data
+
     doc = profile_defaults(name=name, email=email)
     doc["owner_id"] = owner_id
     columns = ", ".join(doc.keys())
     placeholders = ", ".join(["%s"] * len(doc))
     values = tuple(doc.values())
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(f"INSERT INTO household_defaults ({columns}) VALUES ({placeholders})", values)
@@ -407,7 +409,6 @@ async def generate_plan_with_provider(system_prompt: str, ai_input: Dict[str, An
         "Generate a weekly meal and shopping plan from this input. Return valid JSON only, no markdown.\n\n"
         f"{json.dumps(ai_input, indent=2)}"
     )
-    response_text = ""
     if os.environ.get("OPENAI_API_KEY"):
         response_text = call_openai_responses(system_prompt, prompt, "pantry_plan")
     else:
@@ -440,7 +441,6 @@ async def generate_recipe_replacement(old_recipe: Dict[str, Any], config: Dict[s
         f"Inventory on hand: {json.dumps([i['name'] for i in inventory[:30]])}\n"
         "Return valid JSON only."
     )
-    response_text = ""
     if os.environ.get("OPENAI_API_KEY"):
         response_text = call_openai_responses(system_prompt, prompt, "recipe_replacement")
     else:
@@ -698,6 +698,7 @@ async def signup(req: AuthRequest):
             existing = cur.fetchone()
             if existing:
                 raise HTTPException(status_code=409, detail="Account already exists")
+
     user_id = str(uuid.uuid4())
     user = {
         "id": user_id,
@@ -705,6 +706,7 @@ async def signup(req: AuthRequest):
         "email": email,
         "password_hash": password_hash(req.password),
     }
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -712,9 +714,12 @@ async def signup(req: AuthRequest):
                 (user_id, user["name"], email, user["password_hash"], utc_now()),
             )
         conn.commit()
+
     await ensure_profile(user_id, name=user["name"], email=email)
+
     token = secrets.token_urlsafe(32)
     session = {"id": str(uuid.uuid4()), "user_id": user_id, "token": token, "email": email, "name": user["name"]}
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -722,6 +727,7 @@ async def signup(req: AuthRequest):
                 (session["id"], user_id, token, email, user["name"], utc_now()),
             )
         conn.commit()
+
     profile = await ensure_profile(user_id, name=user["name"], email=email)
     return {"token": token, "user": {"id": user_id, "name": user["name"], "email": email}, "profile": profile}
 
@@ -733,10 +739,13 @@ async def login(req: AuthRequest):
         with conn.cursor() as cur:
             cur.execute("SELECT id, name, email, password_hash FROM users WHERE email = %s LIMIT 1", (email,))
             user = cur.fetchone()
+
     user_data = serialize_row(user)
     if not user_data or not verify_password(req.password, user_data["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
     token = secrets.token_urlsafe(32)
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -744,6 +753,7 @@ async def login(req: AuthRequest):
                 (str(uuid.uuid4()), user_data["id"], token, email, user_data["name"], utc_now()),
             )
         conn.commit()
+
     profile = await ensure_profile(user_data["id"], name=user_data["name"], email=email)
     return {"token": token, "user": {"id": user_data["id"], "name": user_data["name"], "email": email}, "profile": profile}
 
@@ -804,12 +814,14 @@ async def update_profile(update: ProfileUpdate, authorization: Optional[str] = H
     update_data["updated_at"] = utc_now()
     set_fields = ", ".join([f"{key} = %s" + ("::timestamptz" if key == "onboarding_completed_at" else "") for key in update_data.keys()])
     values: List[Any] = list(update_data.values()) + [owner_id]
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(f"UPDATE household_defaults SET {set_fields} WHERE owner_id = %s", values)
             cur.execute("SELECT * FROM household_defaults WHERE owner_id = %s LIMIT 1", (owner_id,))
             updated = cur.fetchone()
         conn.commit()
+
     return serialize_row(updated) or existing
 
 
@@ -906,16 +918,22 @@ async def update_inventory_item(item_id: str, update: InventoryItemUpdate, autho
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+
     set_fields = ", ".join([f"{k} = %s" for k in update_data.keys()])
     values = list(update_data.values()) + [item_id, owner_id]
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(f"UPDATE inventory_items SET {set_fields} WHERE id = %s AND owner_id = %s", values)
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Item not found")
-            cur.execute("SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
+            cur.execute(
+                "SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE id = %s AND owner_id = %s",
+                (item_id, owner_id),
+            )
             row = cur.fetchone()
         conn.commit()
+
     if not row:
         raise HTTPException(status_code=404, detail="Item not found")
     return serialize_row(row)
@@ -1035,16 +1053,22 @@ async def update_required_item(item_id: str, update: RequiredItemUpdate, authori
     update_data = {k: v for k, v in update.dict().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+
     set_fields = ", ".join([f"{k} = %s" for k in update_data.keys()])
     values = list(update_data.values()) + [item_id, owner_id]
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(f"UPDATE required_items SET {set_fields} WHERE id = %s AND owner_id = %s", values)
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Item not found")
-            cur.execute("SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE id = %s AND owner_id = %s", (item_id, owner_id))
+            cur.execute(
+                "SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE id = %s AND owner_id = %s",
+                (item_id, owner_id),
+            )
             row = cur.fetchone()
         conn.commit()
+
     if not row:
         raise HTTPException(status_code=404, detail="Item not found")
     return serialize_row(row)
@@ -1081,6 +1105,7 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
             inventory = serialize_rows(cur.fetchall())
             cur.execute("SELECT id, owner_id, name, quantity, unit, note, category, created_at FROM required_items WHERE owner_id = %s", (owner_id,))
             required = serialize_rows(cur.fetchall())
+
     ai_input = build_planner_input(config, inventory, required, req.dict())
 
     if req.save_new_defaults:
@@ -1110,6 +1135,7 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
             "ai_input": ai_input,
             "created_at": utc_now(),
         }
+
         with db_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM weekly_plans WHERE owner_id = %s", (owner_id,))
@@ -1128,6 +1154,7 @@ async def generate_plan(req: GeneratePlanRequest, authorization: Optional[str] =
                     ),
                 )
             conn.commit()
+
         return plan_record
     except json.JSONDecodeError:
         logger.error("Failed to parse AI plan response")
@@ -1171,17 +1198,21 @@ async def remove_recipe(recipe_id: str, authorization: Optional[str] = Header(de
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
             plan_doc = cur.fetchone()
+
     plan_doc_data = serialize_row(plan_doc)
     if not plan_doc_data:
         raise HTTPException(status_code=404, detail="No current plan")
+
     plan = plan_doc_data.get("plan", {})
     plan["selectedRecipes"] = [recipe for recipe in plan.get("selectedRecipes", []) if recipe.get("id") != recipe_id]
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(plan), owner_id))
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
             updated = cur.fetchone()
         conn.commit()
+
     return serialize_row(updated)
 
 
@@ -1189,10 +1220,12 @@ async def remove_recipe(recipe_id: str, authorization: Optional[str] = Header(de
 async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
             plan_doc = cur.fetchone()
+
     plan_doc_data = serialize_row(plan_doc)
     if not plan_doc_data or not plan_doc_data.get("plan"):
         raise HTTPException(status_code=404, detail="No current plan")
@@ -1209,16 +1242,19 @@ async def regenerate_recipe(req: RegenerateRecipeRequest, authorization: Optiona
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, name, quantity, unit, location, created_at FROM inventory_items WHERE owner_id = %s", (owner_id,))
             inventory = serialize_rows(cur.fetchall())
+
     try:
         new_recipe = await generate_recipe_replacement(old_recipe, plan_doc_data.get("config", {}), inventory, req.preference)
         plan = plan_doc_data["plan"]
         plan["selectedRecipes"] = [new_recipe if recipe.get("id") == req.recipe_id else recipe for recipe in plan.get("selectedRecipes", [])]
+
         with db_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute("UPDATE weekly_plans SET plan = %s::jsonb WHERE owner_id = %s", (Json(plan), owner_id))
                 cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
                 updated = cur.fetchone()
             conn.commit()
+
         return serialize_row(updated)
     except Exception as exc:
         logger.error(f"Recipe regeneration error: {exc}")
@@ -1243,13 +1279,16 @@ async def get_history(authorization: Optional[str] = Header(default=None)):
 async def save_to_history(authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, owner_id, plan, config, ai_input, created_at FROM weekly_plans WHERE owner_id = %s LIMIT 1", (owner_id,))
             plan = cur.fetchone()
+
     plan_data = serialize_row(plan)
     if not plan_data:
         raise HTTPException(status_code=404, detail="No current plan to save")
+
     history_entry = {
         "id": str(uuid.uuid4()),
         "owner_id": owner_id,
@@ -1258,6 +1297,7 @@ async def save_to_history(authorization: Optional[str] = Header(default=None)):
         "saved_at": utc_now(),
         "created_at": plan_data.get("created_at"),
     }
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1275,6 +1315,7 @@ async def save_to_history(authorization: Optional[str] = Header(default=None)):
                 ),
             )
         conn.commit()
+
     return history_entry
 
 
@@ -1282,6 +1323,7 @@ async def save_to_history(authorization: Optional[str] = Header(default=None)):
 async def duplicate_from_history(history_id: str, authorization: Optional[str] = Header(default=None)):
     session = await get_session(authorization)
     owner_id = session["user_id"] if session else PUBLIC_OWNER_ID
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -1289,9 +1331,11 @@ async def duplicate_from_history(history_id: str, authorization: Optional[str] =
                 (history_id, owner_id),
             )
             entry = cur.fetchone()
+
     entry_data = serialize_row(entry)
     if not entry_data:
         raise HTTPException(status_code=404, detail="History entry not found")
+
     plan_record = {
         "id": str(uuid.uuid4()),
         "owner_id": owner_id,
@@ -1299,6 +1343,7 @@ async def duplicate_from_history(history_id: str, authorization: Optional[str] =
         "config": entry_data.get("config"),
         "created_at": utc_now(),
     }
+
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM weekly_plans WHERE owner_id = %s", (owner_id,))
@@ -1310,6 +1355,7 @@ async def duplicate_from_history(history_id: str, authorization: Optional[str] =
                 (plan_record["id"], owner_id, Json(plan_record["plan"]), Json(plan_record["config"]), Json({}), plan_record["created_at"]),
             )
         conn.commit()
+
     return plan_record
 
 
