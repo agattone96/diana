@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api, setApiToken } from '../utils/api';
+import { ApiError, api, setApiToken } from '../utils/api';
 import { storage, storageKeys } from '../utils/storage';
 import { HouseholdProfile, SessionState, User } from '../types/app';
 
@@ -52,6 +52,14 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     };
   }, []);
 
+  const clearSession = async () => {
+    setApiToken(null);
+    setToken(null);
+    setUser(null);
+    setProfile(null);
+    await storage.remove(storageKeys.authToken);
+  };
+
   const applySession = async (nextToken: string, nextUser: User, nextProfile: HouseholdProfile) => {
     setApiToken(nextToken);
     setToken(nextToken);
@@ -74,11 +82,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
     try {
       await api.logout();
     } catch {}
-    setApiToken(null);
-    setToken(null);
-    setUser(null);
-    setProfile(null);
-    await storage.remove(storageKeys.authToken);
+    await clearSession();
   };
 
   const refreshProfile = async () => {
@@ -86,7 +90,10 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       const nextProfile = await api.getProfile();
       setProfile(nextProfile);
       return nextProfile;
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        await clearSession();
+      }
       return null;
     }
   };
