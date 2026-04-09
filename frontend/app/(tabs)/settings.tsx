@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import CompactChipSelector from '../../src/components/CompactChipSelector';
 import NumberStepper from '../../src/components/NumberStepper';
 import { useAppSession } from '../../src/context/AppSessionContext';
@@ -39,7 +40,8 @@ function timeAgo(d: string): string {
 }
 
 export default function Settings() {
-  const { refreshProfile, setProfile, profile } = useAppSession();
+  const router = useRouter();
+  const { refreshProfile, setProfile, profile, logOut } = useAppSession();
   const { contentMaxWidth, columns, gutter } = useResponsive();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -173,6 +175,15 @@ export default function Settings() {
     }
   };
 
+  const handleLogOut = async () => {
+    try {
+      await logOut();
+      router.replace('/');
+    } catch (e: any) {
+      Alert.alert('Log out failed', e?.message || 'Please try again.');
+    }
+  };
+
   if (loading) return <SafeAreaView style={s.safe}><View style={s.center}><ActivityIndicator size="large" color={Colors.primary} /></View></SafeAreaView>;
 
   return (
@@ -263,6 +274,15 @@ export default function Settings() {
                   </View>
                 ))}
               </View>
+
+              <View style={s.card}>
+                <Text style={s.cardTitle}>Account</Text>
+                <Text style={s.cardSubtitle}>Manage your current session.</Text>
+                <TouchableOpacity style={s.logoutBtn} onPress={handleLogOut}>
+                  <Ionicons name="log-out-outline" size={16} color="#FFF" />
+                  <Text style={s.logoutText}>Log Out</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -315,6 +335,8 @@ const s = StyleSheet.create({
   histAgo: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   reuseBtn: { backgroundColor: Colors.surfaceMuted, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   reuseText: { color: Colors.primary, fontWeight: '700' },
+  logoutBtn: { backgroundColor: Colors.danger, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  logoutText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
   actionBar: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.surface },
   resetBtn: { borderRadius: 14, paddingHorizontal: 18, justifyContent: 'center', backgroundColor: Colors.dangerMuted },
   resetText: { color: Colors.danger, fontWeight: '700' },

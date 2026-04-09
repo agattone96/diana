@@ -1,6 +1,6 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppSession } from '../src/context/AppSessionContext';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { Colors, Shadows } from '../src/utils/theme';
@@ -12,15 +12,26 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    if (!email || !password) return Alert.alert('Missing fields', 'Enter your email and password.');
+    setError('');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      setError('Enter your email and password.');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await logIn({ email, password });
-      router.replace('/onboarding');
+      const nextProfile = await logIn({ email: normalizedEmail, password });
+      router.replace(nextProfile?.onboarding_completed ? '/(tabs)' : '/onboarding');
     } catch (e: any) {
-      Alert.alert('Login failed', e.message);
+      setError(e?.message || 'We could not log you in. Check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -32,12 +43,12 @@ export default function LoginScreen() {
         <View style={s.card}>
           <Text style={s.title}>Log in</Text>
           <Text style={s.subtitle}>Pick up your weekly plan, defaults, and inventory where you left them.</Text>
-          <TextInput style={s.input} placeholder="Email" placeholderTextColor={Colors.textLight} autoCapitalize="none" value={email} onChangeText={setEmail} />
+          <TextInput style={s.input} placeholder="Email address" placeholderTextColor={Colors.textLight} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
           <TextInput style={s.input} placeholder="Password" placeholderTextColor={Colors.textLight} secureTextEntry value={password} onChangeText={setPassword} />
+          {!!error && <Text style={s.errorText}>{error}</Text>}
           <TouchableOpacity style={s.primaryBtn} onPress={handleSubmit} disabled={loading}>
             <Text style={s.primaryBtnText}>{loading ? 'Logging in...' : 'Log In'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity><Text style={s.linkMuted}>Forgot password</Text></TouchableOpacity>
           <Link href="/signup" asChild><TouchableOpacity><Text style={s.link}>Need an account? Sign Up</Text></TouchableOpacity></Link>
         </View>
       </View>
@@ -54,6 +65,6 @@ const s = StyleSheet.create({
   input: { backgroundColor: Colors.surfaceMuted, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 12, color: Colors.textMain },
   primaryBtn: { backgroundColor: Colors.accent, borderRadius: 14, alignItems: 'center', paddingVertical: 15, marginTop: 6 },
   primaryBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
-  linkMuted: { color: Colors.textMuted, fontSize: 13, marginTop: 12 },
+  errorText: { color: Colors.danger, fontSize: 13, marginTop: -2, marginBottom: 4 },
   link: { color: Colors.primary, fontSize: 13, fontWeight: '700', marginTop: 14 },
 });

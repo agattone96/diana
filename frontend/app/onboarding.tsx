@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ChipSelector from '../src/components/ChipSelector';
 import NumberStepper from '../src/components/NumberStepper';
 import { DEFAULT_COOKING_STYLES, DEFAULT_DIETARY_RULES, DEFAULT_MEAL_COVERAGE, DEFAULT_STORES } from '../src/data/options';
@@ -22,6 +22,7 @@ export default function OnboardingScreen() {
   const [exclusions, setExclusions] = useState(profile?.exclusions ?? '');
   const [budget, setBudget] = useState(String(profile?.budget ?? 200));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const subtitle = useMemo(() => 'A quick setup so This Week starts prefilled instead of blank.', []);
 
@@ -32,6 +33,21 @@ export default function OnboardingScreen() {
     setter(list.includes(item) ? list.filter((entry) => entry !== item) : [...list, item]);
 
   const handleFinish = async () => {
+    setError('');
+    if (preferredStores.length === 0) {
+      setError('Choose at least one preferred store.');
+      return;
+    }
+    if (mealCoverage.length === 0) {
+      setError('Choose at least one meal coverage option.');
+      return;
+    }
+    const parsedBudget = Number(budget);
+    if (Number.isNaN(parsedBudget) || parsedBudget < 0) {
+      setError('Enter a valid budget amount.');
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await api.updateProfile({
@@ -42,7 +58,7 @@ export default function OnboardingScreen() {
         cooking_style: cookingStyle,
         dietary_rules: dietaryRules,
         exclusions,
-        budget: Number(budget) || 0,
+        budget: parsedBudget,
         onboarding_completed: true,
         onboarding_completed_at: new Date().toISOString(),
       });
@@ -50,7 +66,7 @@ export default function OnboardingScreen() {
       await refreshProfile();
       router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Could not save onboarding', e.message);
+      setError(e?.message || 'We could not save your setup. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -91,9 +107,10 @@ export default function OnboardingScreen() {
             <Text style={s.label}>Starting budget</Text>
             <TextInput style={s.input} value={budget} onChangeText={setBudget} placeholder="200" keyboardType="decimal-pad" placeholderTextColor={Colors.textLight} />
           </View>
+          {!!error && <Text style={s.errorText}>{error}</Text>}
 
           <TouchableOpacity style={s.primaryBtn} onPress={handleFinish} disabled={saving}>
-            <Text style={s.primaryBtnText}>{saving ? 'Saving defaults...' : 'Start Planning'}</Text>
+            <Text style={s.primaryBtnText}>{saving ? 'Saving defaults...' : 'Finish Setup'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -112,6 +129,7 @@ const s = StyleSheet.create({
   stepperGap: { height: 12 },
   label: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.7, marginTop: 14, marginBottom: 10 },
   input: { backgroundColor: Colors.surfaceMuted, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: Colors.textMain },
+  errorText: { color: Colors.danger, fontSize: 13, marginHorizontal: 2 },
   primaryBtn: { backgroundColor: Colors.accent, borderRadius: 16, alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   primaryBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
 });
