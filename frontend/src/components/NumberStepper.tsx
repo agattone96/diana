@@ -9,62 +9,75 @@ interface Props {
   min?: number;
   max?: number;
   testID: string;
+  label?: string;
+  hint?: string;
 }
 
-export default function NumberStepper({ value, onIncrement, onDecrement, min = 0, max = 20, testID }: Props) {
+export default function NumberStepper({ value, onIncrement, onDecrement, min = 0, max = 20, testID, label, hint }: Props) {
+  const atMin = value <= min;
+  const atMax = value >= max;
+
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        testID={`${testID}-decrement`}
-        style={[styles.button, value <= min && styles.buttonDisabled]}
-        onPress={onDecrement}
-        disabled={value <= min}
-        activeOpacity={0.6}
-      >
-        <Text style={[styles.buttonText, value <= min && styles.buttonTextDisabled]}>-</Text>
-      </TouchableOpacity>
-      <Text testID={`${testID}-value`} style={styles.value}>{value}</Text>
-      <TouchableOpacity
-        testID={`${testID}-increment`}
-        style={[styles.button, value >= max && styles.buttonDisabled]}
-        onPress={onIncrement}
-        disabled={value >= max}
-        activeOpacity={0.6}
-      >
-        <Text style={[styles.buttonText, value >= max && styles.buttonTextDisabled]}>+</Text>
-      </TouchableOpacity>
+    <View style={styles.row}>
+      {label && (
+        <View style={styles.meta}>
+          <Text style={styles.label}>{label}</Text>
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+        </View>
+      )}
+      <View style={styles.control}>
+        <TouchableOpacity
+          testID={`${testID}-decrement`}
+          style={[styles.btn, atMin && styles.btnOff]}
+          onPress={onDecrement}
+          disabled={atMin}
+          activeOpacity={0.6}
+        >
+          <Text style={[styles.btnIcon, atMin && styles.btnIconOff]}>-</Text>
+        </TouchableOpacity>
+        <Text testID={`${testID}-value`} style={styles.value}>{value}</Text>
+        <TouchableOpacity
+          testID={`${testID}-increment`}
+          style={[styles.btn, atMax && styles.btnOff]}
+          onPress={onIncrement}
+          disabled={atMax}
+          activeOpacity={0.6}
+        >
+          <Text style={[styles.btnIcon, atMax && styles.btnIconOff]}>+</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  meta: { flex: 1 },
+  label: { fontSize: 15, fontWeight: '600', color: Colors.textMain },
+  hint: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  control: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  button: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
     backgroundColor: Colors.surfaceMuted,
+    borderRadius: 12,
+    padding: 3,
+  },
+  btn: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonDisabled: { opacity: 0.3 },
-  buttonText: { fontSize: 20, fontWeight: '600', color: Colors.textMain },
-  buttonTextDisabled: { color: Colors.textMuted },
+  btnOff: { backgroundColor: 'transparent', opacity: 0.35 },
+  btnIcon: { fontSize: 18, fontWeight: '600', color: Colors.textMain },
+  btnIconOff: { color: Colors.textMuted },
   value: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: Colors.textMain,
-    marginHorizontal: 20,
-    minWidth: 24,
+    minWidth: 32,
     textAlign: 'center',
   },
 });

@@ -7,24 +7,23 @@ interface Props {
   selected: string[];
   onToggle: (option: string) => void;
   testIDPrefix: string;
+  single?: boolean;
 }
 
-export default function ChipSelector({ options, selected, onToggle, testIDPrefix }: Props) {
+export default function ChipSelector({ options, selected, onToggle, testIDPrefix, single }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={styles.wrap}>
       {options.map((option) => {
-        const isSelected = selected.includes(option);
+        const active = single ? selected[0] === option : selected.includes(option);
         return (
           <TouchableOpacity
             key={option}
             testID={`${testIDPrefix}-${option.toLowerCase().replace(/[\s']/g, '-')}`}
-            style={[styles.chip, isSelected && styles.chipSelected]}
+            style={[styles.chip, active && styles.chipOn]}
             onPress={() => onToggle(option)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-              {option}
-            </Text>
+            <Text style={[styles.label, active && styles.labelOn]}>{option}</Text>
           </TouchableOpacity>
         );
       })}
@@ -33,14 +32,19 @@ export default function ChipSelector({ options, selected, onToggle, testIDPrefix
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     backgroundColor: Colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  chipSelected: { backgroundColor: Colors.primary },
-  chipText: { fontSize: 14, color: Colors.textMuted, fontWeight: '500' },
-  chipTextSelected: { color: '#FFFFFF' },
+  chipOn: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary + '30',
+  },
+  label: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
+  labelOn: { color: Colors.primary, fontWeight: '600' },
 });

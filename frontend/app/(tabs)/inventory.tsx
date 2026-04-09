@@ -5,318 +5,153 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '../../src/utils/theme';
+import { Colors, Shadows } from '../../src/utils/theme';
 import { api } from '../../src/utils/api';
 
 const LOCATIONS = ['pantry', 'fridge', 'freezer'] as const;
 type Location = typeof LOCATIONS[number];
+const LOC_ICONS: Record<Location, string> = { pantry: 'basket-outline', fridge: 'snow-outline', freezer: 'cube-outline' };
 
-interface InventoryItem {
-  id: string;
-  name: string;
-  quantity: number;
-  unit: string;
-  location: string;
-}
+interface Item { id: string; name: string; quantity: number; unit: string; location: string; }
 
 export default function Inventory() {
-  const [activeTab, setActiveTab] = useState<Location>('pantry');
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [tab, setTab] = useState<Location>('pantry');
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [extractedItems, setExtractedItems] = useState<InventoryItem[]>([]);
+  const [extracted, setExtracted] = useState<Item[]>([]);
   const [showExtracted, setShowExtracted] = useState(false);
-
-  // Add form
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('1');
   const [newUnit, setNewUnit] = useState('');
 
-  const loadItems = useCallback(async () => {
-    try {
-      const data = await api.getInventory(activeTab);
-      setItems(data);
-    } catch (e) {
-      console.error('Load inventory failed:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    setLoading(true);
-    loadItems();
-  }, [activeTab, loadItems]);
+  const load = useCallback(async () => {
+    try { setItems(await api.getInventory(tab)); } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [tab]);
+  useEffect(() => { setLoading(true); load(); }, [tab, load]);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
     try {
-      const item = await api.addInventoryItem({
-        name: newName.trim(),
-        quantity: parseFloat(newQty) || 1,
-        unit: newUnit.trim(),
-        location: activeTab,
-      });
+      const item = await api.addInventoryItem({ name: newName.trim(), quantity: parseFloat(newQty) || 1, unit: newUnit.trim(), location: tab });
       setItems(prev => [item, ...prev]);
-      setNewName('');
-      setNewQty('1');
-      setNewUnit('');
-      setShowAdd(false);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
+      setNewName(''); setNewQty('1'); setNewUnit(''); setShowAdd(false);
+    } catch (e: any) { Alert.alert('Error', e.message); }
   };
-
   const handleDelete = async (id: string) => {
-    try {
-      await api.deleteInventoryItem(id);
-      setItems(prev => prev.filter(i => i.id !== id));
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
+    try { await api.deleteInventoryItem(id); setItems(p => p.filter(i => i.id !== id)); }
+    catch (e: any) { Alert.alert('Error', e.message); }
   };
 
-  const handlePhotoUpload = async () => {
+  const pickImage = async (useCamera: boolean) => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow photo library access to upload photos.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        base64: true,
-        quality: 0.7,
-      });
+      const perm = useCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permission needed'); return; }
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], base64: true, quality: 0.7 });
       if (result.canceled || !result.assets?.[0]?.base64) return;
-
       setExtracting(true);
-      const response = await api.extractPhoto(result.assets[0].base64, activeTab);
-      if (response.items?.length > 0) {
-        setExtractedItems(response.items);
-        setShowExtracted(true);
-      } else {
-        Alert.alert('No items found', 'Could not identify items in the photo. Try a clearer photo.');
-      }
-    } catch (e: any) {
-      Alert.alert('Extraction Failed', e.message || 'Please try again.');
-    } finally {
-      setExtracting(false);
-    }
+      const res = await api.extractPhoto(result.assets[0].base64, tab);
+      if (res.items?.length > 0) { setExtracted(res.items); setShowExtracted(true); }
+      else { Alert.alert('No items found', 'Try a clearer photo.'); }
+    } catch (e: any) { Alert.alert('Extraction Failed', e.message); }
+    finally { setExtracting(false); }
   };
 
-  const handleCamera = async () => {
+  const saveExtracted = async () => {
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow camera access.');
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        base64: true,
-        quality: 0.7,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-
-      setExtracting(true);
-      const response = await api.extractPhoto(result.assets[0].base64, activeTab);
-      if (response.items?.length > 0) {
-        setExtractedItems(response.items);
-        setShowExtracted(true);
-      } else {
-        Alert.alert('No items found', 'Could not identify items in the photo.');
-      }
-    } catch (e: any) {
-      Alert.alert('Extraction Failed', e.message || 'Please try again.');
-    } finally {
-      setExtracting(false);
-    }
+      const saved = await api.addInventoryBatch(extracted.map(i => ({ name: i.name, quantity: i.quantity, unit: i.unit, location: tab })));
+      setItems(prev => [...saved, ...prev]); setShowExtracted(false); setExtracted([]);
+    } catch (e: any) { Alert.alert('Error', e.message); }
   };
 
-  const saveExtractedItems = async () => {
-    try {
-      const itemsToSave = extractedItems.map(i => ({
-        name: i.name,
-        quantity: i.quantity,
-        unit: i.unit,
-        location: activeTab,
-      }));
-      const saved = await api.addInventoryBatch(itemsToSave);
-      setItems(prev => [...saved, ...prev]);
-      setShowExtracted(false);
-      setExtractedItems([]);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
-  };
-
-  const removeExtracted = (id: string) => {
-    setExtractedItems(prev => prev.filter(i => i.id !== id));
-  };
-
-  const renderItem = ({ item }: { item: InventoryItem }) => (
-    <View style={styles.itemRow} testID={`inventory-item-${item.id}`}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemDetail}>
-          {item.quantity}{item.unit ? ` ${item.unit}` : ''}
-        </Text>
+  const renderItem = ({ item }: { item: Item }) => (
+    <View style={s.itemCard} testID={`inventory-item-${item.id}`}>
+      <View style={s.itemLeft}>
+        <Text style={s.itemName}>{item.name}</Text>
+        <Text style={s.itemQty}>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</Text>
       </View>
-      <TouchableOpacity
-        testID={`delete-item-${item.id}`}
-        onPress={() => handleDelete(item.id)}
-        style={styles.deleteBtn}
-      >
-        <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+      <TouchableOpacity testID={`delete-item-${item.id}`} onPress={() => handleDelete(item.id)} style={s.itemDel} activeOpacity={0.6}>
+        <Ionicons name="close-circle" size={20} color={Colors.textLight} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.headerSection}>
-        <Text style={styles.headerTitle}>Inventory</Text>
-        <Text style={styles.headerSubtitle}>Track what you have on hand</Text>
-      </View>
+    <SafeAreaView style={s.safe}>
+      <View style={s.header}><Text style={s.title}>Inventory</Text><Text style={s.subtitle}>Track what you have on hand</Text></View>
 
       {/* Location Tabs */}
-      <View style={styles.tabBar}>
+      <View style={s.tabs}>
         {LOCATIONS.map(loc => (
-          <TouchableOpacity
-            key={loc}
-            testID={`tab-${loc}`}
-            style={[styles.tab, activeTab === loc && styles.tabActive]}
-            onPress={() => setActiveTab(loc)}
-          >
-            <Ionicons
-              name={loc === 'pantry' ? 'basket-outline' : loc === 'fridge' ? 'snow-outline' : 'cube-outline'}
-              size={18}
-              color={activeTab === loc ? Colors.primary : Colors.textMuted}
-            />
-            <Text style={[styles.tabText, activeTab === loc && styles.tabTextActive]}>
-              {loc.charAt(0).toUpperCase() + loc.slice(1)}
-            </Text>
+          <TouchableOpacity key={loc} testID={`tab-${loc}`} style={[s.tab, tab === loc && s.tabOn]} onPress={() => setTab(loc)} activeOpacity={0.7}>
+            <Ionicons name={LOC_ICONS[loc] as any} size={16} color={tab === loc ? Colors.primary : Colors.textLight} />
+            <Text style={[s.tabLabel, tab === loc && s.tabLabelOn]}>{loc.charAt(0).toUpperCase() + loc.slice(1)}</Text>
+            {tab === loc && <View style={s.tabDot} />}
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity testID="add-item-btn" style={styles.actionBtn} onPress={() => setShowAdd(true)}>
-          <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
-          <Text style={styles.actionText}>Add Item</Text>
+      <View style={s.actions}>
+        <TouchableOpacity testID="add-item-btn" style={s.actionBtn} onPress={() => setShowAdd(true)} activeOpacity={0.7}>
+          <Ionicons name="add" size={16} color={Colors.primary} /><Text style={s.actionText}>Add</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="upload-photo-btn" style={styles.actionBtn} onPress={handlePhotoUpload} disabled={extracting}>
-          <Ionicons name="image-outline" size={18} color={Colors.primary} />
-          <Text style={styles.actionText}>Upload Photo</Text>
+        <TouchableOpacity testID="upload-photo-btn" style={s.actionBtn} onPress={() => pickImage(false)} disabled={extracting} activeOpacity={0.7}>
+          <Ionicons name="image-outline" size={16} color={Colors.primary} /><Text style={s.actionText}>Photo</Text>
         </TouchableOpacity>
-        <TouchableOpacity testID="camera-btn" style={styles.actionBtn} onPress={handleCamera} disabled={extracting}>
-          <Ionicons name="camera-outline" size={18} color={Colors.primary} />
-          <Text style={styles.actionText}>Camera</Text>
+        <TouchableOpacity testID="camera-btn" style={s.actionBtn} onPress={() => pickImage(true)} disabled={extracting} activeOpacity={0.7}>
+          <Ionicons name="camera-outline" size={16} color={Colors.primary} /><Text style={s.actionText}>Camera</Text>
         </TouchableOpacity>
       </View>
 
-      {extracting && (
-        <View style={styles.extractingBanner}>
-          <ActivityIndicator size="small" color={Colors.accent} />
-          <Text style={styles.extractingText}>Scanning photo for items...</Text>
-        </View>
-      )}
+      {extracting && <View style={s.banner}><ActivityIndicator size="small" color={Colors.accent} /><Text style={s.bannerText}>Scanning photo...</Text></View>}
 
-      {/* Items List */}
-      {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
-      ) : items.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name={activeTab === 'pantry' ? 'basket-outline' : activeTab === 'fridge' ? 'snow-outline' : 'cube-outline'} size={48} color={Colors.border} />
-          <Text style={styles.emptyTitle}>No items in {activeTab}</Text>
-          <Text style={styles.emptySubtitle}>Add items manually or upload a photo</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      {loading ? <View style={s.center}><ActivityIndicator size="large" color={Colors.primary} /></View> :
+        items.length === 0 ? (
+          <View style={s.empty}>
+            <View style={s.emptyIconWrap}><Ionicons name={LOC_ICONS[tab] as any} size={32} color={Colors.border} /></View>
+            <Text style={s.emptyTitle}>Your {tab} is empty</Text>
+            <Text style={s.emptyBody}>Add items manually or snap a photo to auto-detect what's inside.</Text>
+          </View>
+        ) : (
+          <FlatList data={items} keyExtractor={i => i.id} renderItem={renderItem} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false} />
+        )
+      }
 
-      {/* Add Item Modal */}
+      {/* Add Modal */}
       <Modal visible={showAdd} animationType="slide" transparent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Item</Text>
-              <TouchableOpacity testID="close-add-modal" onPress={() => setShowAdd(false)}>
-                <Ionicons name="close" size={24} color={Colors.textMuted} />
-              </TouchableOpacity>
+        <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={s.modal}>
+            <View style={s.modalHead}><Text style={s.modalTitle}>Add to {tab}</Text><TouchableOpacity testID="close-add-modal" onPress={() => setShowAdd(false)}><Ionicons name="close" size={22} color={Colors.textMuted} /></TouchableOpacity></View>
+            <TextInput testID="new-item-name" style={s.input} value={newName} onChangeText={setNewName} placeholder="Item name" placeholderTextColor={Colors.textLight} autoFocus />
+            <View style={s.inputRow}>
+              <TextInput testID="new-item-qty" style={[s.input, { flex: 1, marginRight: 8 }]} value={newQty} onChangeText={setNewQty} placeholder="Qty" keyboardType="numeric" placeholderTextColor={Colors.textLight} />
+              <TextInput testID="new-item-unit" style={[s.input, { flex: 1 }]} value={newUnit} onChangeText={setNewUnit} placeholder="Unit (lbs, cans...)" placeholderTextColor={Colors.textLight} />
             </View>
-            <TextInput
-              testID="new-item-name"
-              style={styles.modalInput}
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Item name"
-              placeholderTextColor={Colors.textMuted}
-              autoFocus
-            />
-            <View style={styles.modalRow}>
-              <TextInput
-                testID="new-item-qty"
-                style={[styles.modalInput, { flex: 1, marginRight: 8 }]}
-                value={newQty}
-                onChangeText={setNewQty}
-                placeholder="Qty"
-                keyboardType="numeric"
-                placeholderTextColor={Colors.textMuted}
-              />
-              <TextInput
-                testID="new-item-unit"
-                style={[styles.modalInput, { flex: 1 }]}
-                value={newUnit}
-                onChangeText={setNewUnit}
-                placeholder="Unit (e.g. lbs, cans)"
-                placeholderTextColor={Colors.textMuted}
-              />
-            </View>
-            <TouchableOpacity testID="save-item-btn" style={styles.saveBtn} onPress={handleAdd}>
-              <Text style={styles.saveBtnText}>Add to {activeTab}</Text>
-            </TouchableOpacity>
+            <TouchableOpacity testID="save-item-btn" style={s.primaryBtn} onPress={handleAdd} activeOpacity={0.8}><Text style={s.primaryBtnText}>Add Item</Text></TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Extracted Items Modal */}
+      {/* Extracted Modal */}
       <Modal visible={showExtracted} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Found Items</Text>
-              <TouchableOpacity testID="close-extracted-modal" onPress={() => setShowExtracted(false)}>
-                <Ionicons name="close" size={24} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.extractedHint}>Review and edit before saving:</Text>
-            <ScrollView style={{ maxHeight: 300 }}>
-              {extractedItems.map(item => (
-                <View key={item.id} style={styles.extractedRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemDetail}>{item.quantity} {item.unit}</Text>
-                  </View>
-                  <TouchableOpacity testID={`remove-extracted-${item.id}`} onPress={() => removeExtracted(item.id)}>
-                    <Ionicons name="close-circle" size={22} color={Colors.danger} />
-                  </TouchableOpacity>
+        <View style={s.modalOverlay}>
+          <View style={s.modal}>
+            <View style={s.modalHead}><Text style={s.modalTitle}>Found {extracted.length} Items</Text><TouchableOpacity testID="close-extracted-modal" onPress={() => setShowExtracted(false)}><Ionicons name="close" size={22} color={Colors.textMuted} /></TouchableOpacity></View>
+            <Text style={s.extractHint}>Review and edit before saving</Text>
+            <ScrollView style={{ maxHeight: 280 }}>
+              {extracted.map(item => (
+                <View key={item.id} style={s.extractRow}>
+                  <View style={{ flex: 1 }}><Text style={s.itemName}>{item.name}</Text><Text style={s.itemQty}>{item.quantity} {item.unit}</Text></View>
+                  <TouchableOpacity testID={`remove-extracted-${item.id}`} onPress={() => setExtracted(p => p.filter(i => i.id !== item.id))}><Ionicons name="close-circle" size={20} color={Colors.danger} /></TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
-            {extractedItems.length > 0 && (
-              <TouchableOpacity testID="save-extracted-btn" style={styles.saveBtn} onPress={saveExtractedItems}>
-                <Text style={styles.saveBtnText}>Save {extractedItems.length} items to {activeTab}</Text>
-              </TouchableOpacity>
-            )}
+            {extracted.length > 0 && <TouchableOpacity testID="save-extracted-btn" style={s.primaryBtn} onPress={saveExtracted} activeOpacity={0.8}><Text style={s.primaryBtnText}>Save {extracted.length} items</Text></TouchableOpacity>}
           </View>
         </View>
       </Modal>
@@ -324,103 +159,47 @@ export default function Inventory() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
-  headerSection: { paddingHorizontal: 20, paddingTop: 12 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: Colors.textMain },
-  headerSubtitle: { fontSize: 15, color: Colors.textMuted, marginTop: 4 },
-  tabBar: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: 12,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-  },
-  tabActive: { backgroundColor: Colors.surface, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  tabText: { fontSize: 14, fontWeight: '500', color: Colors.textMuted },
-  tabTextActive: { color: Colors.primary, fontWeight: '600' },
-  actions: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 16, gap: 8 },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  actionText: { fontSize: 13, fontWeight: '500', color: Colors.primary },
-  extractingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.surface,
-    margin: 20,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.warning,
-  },
-  extractingText: { fontSize: 14, color: Colors.textMain },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  header: { paddingHorizontal: 20, paddingTop: 12 },
+  title: { fontSize: 26, fontWeight: '700', color: Colors.textMain, letterSpacing: -0.4 },
+  subtitle: { fontSize: 14, color: Colors.textMuted, marginTop: 2 },
+
+  tabs: { flexDirection: 'row', marginHorizontal: 20, marginTop: 18, backgroundColor: Colors.surface, borderRadius: 14, padding: 4, borderWidth: 1, borderColor: Colors.border, ...Shadows.sm },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, gap: 5 },
+  tabOn: { backgroundColor: Colors.primaryMuted },
+  tabLabel: { fontSize: 13, fontWeight: '500', color: Colors.textLight },
+  tabLabelOn: { color: Colors.primary, fontWeight: '700' },
+  tabDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.primary },
+
+  actions: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 14, gap: 8 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.surface, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
+  actionText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.surface, margin: 20, marginBottom: 0, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.warning + '40' },
+  bannerText: { fontSize: 13, color: Colors.textSecondary },
+
   listContent: { padding: 20 },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  itemInfo: { flex: 1 },
+  itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: Colors.border, ...Shadows.sm },
+  itemLeft: { flex: 1 },
   itemName: { fontSize: 15, fontWeight: '600', color: Colors.textMain },
-  itemDetail: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
-  deleteBtn: { padding: 8 },
-  emptyState: { alignItems: 'center', marginTop: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 17, fontWeight: '600', color: Colors.textMuted, marginTop: 16 },
-  emptySubtitle: { fontSize: 14, color: Colors.textMuted, marginTop: 4, textAlign: 'center' },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalContent: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.textMain },
-  modalInput: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: Colors.textMain,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 12,
-  },
-  modalRow: { flexDirection: 'row' },
-  saveBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
-  extractedHint: { fontSize: 14, color: Colors.textMuted, marginBottom: 12 },
-  extractedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
+  itemQty: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
+  itemDel: { padding: 6 },
+
+  empty: { alignItems: 'center', marginTop: 60, paddingHorizontal: 40 },
+  emptyIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.textMuted },
+  emptyBody: { fontSize: 13, color: Colors.textLight, textAlign: 'center', marginTop: 6, lineHeight: 18 },
+
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  modal: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
+  modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textMain },
+  input: { backgroundColor: Colors.background, borderRadius: 10, padding: 14, fontSize: 15, color: Colors.textMain, borderWidth: 1, borderColor: Colors.border, marginBottom: 10 },
+  inputRow: { flexDirection: 'row' },
+  primaryBtn: { backgroundColor: Colors.primary, borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 6 },
+  primaryBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+  extractHint: { fontSize: 13, color: Colors.textMuted, marginBottom: 12 },
+  extractRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
 });

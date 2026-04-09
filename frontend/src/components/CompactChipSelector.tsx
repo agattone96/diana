@@ -11,21 +11,19 @@ interface Props {
 
 export default function CompactChipSelector({ options, selected, onToggle, testIDPrefix }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={styles.wrap}>
       {options.map((option) => {
-        const isSelected = selected.includes(option);
+        const active = selected.includes(option);
         return (
           <TouchableOpacity
             key={option}
             testID={`${testIDPrefix}-${option.toLowerCase().replace(/[\s']/g, '-')}`}
-            style={[styles.chip, isSelected && styles.chipSelected]}
+            style={[styles.chip, active && styles.chipOn]}
             onPress={() => onToggle(option)}
             activeOpacity={0.7}
           >
-            {isSelected && <View style={styles.dot} />}
-            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-              {option}
-            </Text>
+            {active && <View style={styles.dot} />}
+            <Text style={[styles.label, active && styles.labelOn]}>{option}</Text>
           </TouchableOpacity>
         );
       })}
@@ -34,20 +32,20 @@ export default function CompactChipSelector({ options, selected, onToggle, testI
 }
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 8,
     backgroundColor: Colors.background,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  chipSelected: {
-    backgroundColor: Colors.primary + '12',
-    borderColor: Colors.primary + '40',
+  chipOn: {
+    backgroundColor: Colors.primaryMuted,
+    borderColor: Colors.primary + '35',
   },
   dot: {
     width: 5,
@@ -56,6 +54,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     marginRight: 6,
   },
-  chipText: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' },
-  chipTextSelected: { color: Colors.primary, fontWeight: '600' },
+  label: { fontSize: 12.5, color: Colors.textMuted, fontWeight: '500' },
+  labelOn: { color: Colors.primary, fontWeight: '600' },
 });
