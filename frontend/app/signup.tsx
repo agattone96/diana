@@ -1,6 +1,6 @@
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppSession } from '../src/context/AppSessionContext';
 import { useResponsive } from '../src/hooks/useResponsive';
 import { Colors, Shadows } from '../src/utils/theme';
@@ -14,16 +14,38 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleSubmit = async () => {
-    if (!name || !email || !password || !confirmPassword) return Alert.alert('Missing fields', 'Complete all fields to create an account.');
-    if (password !== confirmPassword) return Alert.alert('Password mismatch', 'Passwords must match.');
+    setError('');
+    setSuccess('');
+    const trimmedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!trimmedName || !normalizedEmail || !password || !confirmPassword) {
+      setError('Complete all fields to create your account.');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(normalizedEmail)) {
+      setError('Enter a valid email address.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Use at least 8 characters for your password.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
     try {
-      await signUp({ name, email, password });
-      router.replace('/onboarding');
+      const nextProfile = await signUp({ name: trimmedName, email: normalizedEmail, password });
+      setSuccess('Account created. Taking you to setup...');
+      router.replace(nextProfile?.onboarding_completed ? '/(tabs)' : '/onboarding');
     } catch (e: any) {
-      Alert.alert('Sign up failed', e.message);
+      setError(e?.message || 'We could not create your account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -35,10 +57,12 @@ export default function SignupScreen() {
         <View style={s.card}>
           <Text style={s.title}>Create your account</Text>
           <Text style={s.subtitle}>Save household defaults, build weekly plans, and keep grocery flows editable across devices.</Text>
-          <TextInput style={s.input} placeholder="Name" placeholderTextColor={Colors.textLight} value={name} onChangeText={setName} />
-          <TextInput style={s.input} placeholder="Email" placeholderTextColor={Colors.textLight} autoCapitalize="none" value={email} onChangeText={setEmail} />
-          <TextInput style={s.input} placeholder="Password" placeholderTextColor={Colors.textLight} secureTextEntry value={password} onChangeText={setPassword} />
+          <TextInput style={s.input} placeholder="Household name" placeholderTextColor={Colors.textLight} value={name} onChangeText={setName} />
+          <TextInput style={s.input} placeholder="Email address" placeholderTextColor={Colors.textLight} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <TextInput style={s.input} placeholder="Password (min 8 characters)" placeholderTextColor={Colors.textLight} secureTextEntry value={password} onChangeText={setPassword} />
           <TextInput style={s.input} placeholder="Confirm password" placeholderTextColor={Colors.textLight} secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} />
+          {!!error && <Text style={s.errorText}>{error}</Text>}
+          {!!success && <Text style={s.successText}>{success}</Text>}
           <TouchableOpacity style={s.primaryBtn} onPress={handleSubmit} disabled={loading}>
             <Text style={s.primaryBtnText}>{loading ? 'Creating account...' : 'Create Account'}</Text>
           </TouchableOpacity>
@@ -56,6 +80,8 @@ const s = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '800', color: Colors.textMain },
   subtitle: { fontSize: 14, lineHeight: 21, color: Colors.textMuted, marginTop: 8, marginBottom: 18 },
   input: { backgroundColor: Colors.surfaceMuted, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 12, color: Colors.textMain },
+  errorText: { color: Colors.danger, fontSize: 13, marginTop: -2, marginBottom: 4 },
+  successText: { color: Colors.success, fontSize: 13, marginTop: -2, marginBottom: 4 },
   primaryBtn: { backgroundColor: Colors.accent, borderRadius: 14, alignItems: 'center', paddingVertical: 15, marginTop: 6 },
   primaryBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
   link: { color: Colors.primary, fontSize: 13, fontWeight: '700', marginTop: 14 },

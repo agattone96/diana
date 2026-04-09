@@ -5,8 +5,8 @@ import { HouseholdProfile, SessionState, User } from '../types/app';
 
 interface SessionContextValue extends SessionState {
   ready: boolean;
-  signUp: (payload: { name: string; email: string; password: string }) => Promise<void>;
-  logIn: (payload: { email: string; password: string }) => Promise<void>;
+  signUp: (payload: { name: string; email: string; password: string }) => Promise<HouseholdProfile>;
+  logIn: (payload: { email: string; password: string }) => Promise<HouseholdProfile>;
   logOut: () => Promise<void>;
   refreshProfile: () => Promise<HouseholdProfile | null>;
   setProfile: React.Dispatch<React.SetStateAction<HouseholdProfile | null>>;
@@ -71,11 +71,13 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const signUp = async (payload: { name: string; email: string; password: string }) => {
     const data = await api.signup(payload);
     await applySession(data.token, data.user, data.profile);
+    return data.profile;
   };
 
   const logIn = async (payload: { email: string; password: string }) => {
     const data = await api.login(payload);
     await applySession(data.token, data.user, data.profile);
+    return data.profile;
   };
 
   const logOut = async () => {
