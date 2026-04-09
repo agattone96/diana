@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/utils/theme';
-import ChipSelector from '../../src/components/ChipSelector';
+import CompactChipSelector from '../../src/components/CompactChipSelector';
 import NumberStepper from '../../src/components/NumberStepper';
 import { api } from '../../src/utils/api';
 
@@ -14,10 +14,41 @@ const MEAL_COVERAGE = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
 const COOKING_STYLES = ['Easy meals', 'Crockpot', 'One pan', 'Sheet pan', 'Minimum effort', 'Batch cook', 'Air fryer', 'Instant pot'];
 const DIETARY_RULES = ['Gluten free', 'Dairy free', 'Low carb', 'Vegetarian', 'Vegan', 'Keto', 'Nut free', 'Low sodium'];
 
+function SectionHeader({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+  return (
+    <View style={s.sectionHeader}>
+      <View style={s.sectionIconWrap}>
+        <Ionicons name={icon as any} size={16} color={Colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.sectionTitle}>{title}</Text>
+        <Text style={s.sectionSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return <Text style={s.fieldLabel}>{children}</Text>;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins <= 1 ? 'Just now' : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+}
+
 export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [dirty, setDirty] = useState(false);
 
   const [adults, setAdults] = useState(4);
   const [children, setChildren] = useState(1);
@@ -40,6 +71,7 @@ export default function Settings() {
         setExclusions(profile.exclusions || '');
       }
       setHistory(hist || []);
+      setDirty(false);
     } catch (e) {
       console.error('Load settings failed:', e);
     } finally {
@@ -49,8 +81,10 @@ export default function Settings() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const mark = () => setDirty(true);
   const toggle = (list: string[], setList: (v: string[]) => void, item: string) => {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
+    mark();
   };
 
   const handleSave = async () => {
@@ -64,7 +98,8 @@ export default function Settings() {
         dietary_rules: dietaryRules,
         exclusions,
       });
-      Alert.alert('Saved', 'Your defaults have been updated.');
+      setDirty(false);
+      Alert.alert('Defaults Saved', 'Your household profile has been updated. These will pre-fill every new weekly plan.');
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -73,25 +108,30 @@ export default function Settings() {
   };
 
   const handleReset = async () => {
-    Alert.alert('Reset Defaults', 'This will restore all settings to the original defaults.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset', style: 'destructive', onPress: async () => {
-          try {
-            const profile = await api.resetProfile();
-            setAdults(profile.adults);
-            setChildren(profile.children);
-            setStores(profile.preferred_stores);
-            setMeals(profile.meal_coverage);
-            setCookingStyle(profile.cooking_style);
-            setDietaryRules(profile.dietary_rules);
-            setExclusions(profile.exclusions);
-          } catch (e: any) {
-            Alert.alert('Error', e.message);
+    Alert.alert(
+      'Reset to Factory Defaults?',
+      '4 adults, 1 child, all default stores & cooking styles. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Everything', style: 'destructive', onPress: async () => {
+            try {
+              const profile = await api.resetProfile();
+              setAdults(profile.adults);
+              setChildren(profile.children);
+              setStores(profile.preferred_stores);
+              setMeals(profile.meal_coverage);
+              setCookingStyle(profile.cooking_style);
+              setDietaryRules(profile.dietary_rules);
+              setExclusions(profile.exclusions);
+              setDirty(false);
+            } catch (e: any) {
+              Alert.alert('Error', e.message);
+            }
           }
-        }
-      },
-    ]);
+        },
+      ]
+    );
   };
 
   const handleSaveToHistory = async () => {
@@ -106,159 +146,356 @@ export default function Settings() {
   };
 
   const handleDuplicate = async (id: string) => {
-    try {
-      await api.duplicateFromHistory(id);
-      Alert.alert('Done', 'Previous week duplicated as current plan.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
+    Alert.alert('Reuse This Plan?', 'This will replace your current weekly plan with this saved one.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reuse Plan', onPress: async () => {
+          try {
+            await api.duplicateFromHistory(id);
+            Alert.alert('Done', 'Previous week loaded as your current plan.');
+          } catch (e: any) {
+            Alert.alert('Error', e.message);
+          }
+        }
+      }
+    ]);
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 60 }} />
+      <SafeAreaView style={s.safeArea}>
+        <View style={s.loadingWrap}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={s.loadingText}>Loading profile...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={s.safeArea}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <Text style={styles.headerSubtitle}>Manage your household defaults</Text>
+        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-          {/* Household */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>HOUSEHOLD SIZE</Text>
-            <View style={styles.card}>
-              <View style={styles.stepperRow}>
-                <Text style={styles.label}>Adults</Text>
-                <NumberStepper value={adults} onIncrement={() => setAdults(a => Math.min(a + 1, 20))} onDecrement={() => setAdults(a => Math.max(a - 1, 1))} min={1} testID="settings-adults" />
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.stepperRow}>
-                <Text style={styles.label}>Children</Text>
-                <NumberStepper value={children} onIncrement={() => setChildren(c => Math.min(c + 1, 20))} onDecrement={() => setChildren(c => Math.max(c - 1, 0))} min={0} testID="settings-children" />
-              </View>
+          {/* ── Profile Header ── */}
+          <View style={s.profileHeader}>
+            <View style={s.profileBadge}>
+              <Ionicons name="home" size={22} color={Colors.primary} />
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.profileTitle}>Household Profile</Text>
+              <Text style={s.profileHint}>
+                Defaults that pre-fill every weekly plan
+              </Text>
+            </View>
+            {dirty && (
+              <View style={s.unsavedBadge}>
+                <Text style={s.unsavedText}>Unsaved</Text>
+              </View>
+            )}
           </View>
 
-          {/* Stores */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>DEFAULT STORES</Text>
-            <ChipSelector options={STORES} selected={stores} onToggle={(s) => toggle(stores, setStores, s)} testIDPrefix="settings-store" />
+          {/* ════════════════════════════════════════════ */}
+          {/* CARD 1 — Household & Shopping              */}
+          {/* ════════════════════════════════════════════ */}
+          <View style={s.groupCard}>
+            <SectionHeader icon="people-outline" title="Household & Shopping" subtitle="Who you're feeding and where you shop" />
+
+            <FieldLabel>Household size</FieldLabel>
+            <View style={s.stepperRow}>
+              <View style={s.stepperMeta}>
+                <Ionicons name="person-outline" size={16} color={Colors.textMuted} />
+                <Text style={s.stepperLabel}>Adults</Text>
+              </View>
+              <NumberStepper value={adults} onIncrement={() => { setAdults(a => Math.min(a + 1, 20)); mark(); }} onDecrement={() => { setAdults(a => Math.max(a - 1, 1)); mark(); }} min={1} testID="settings-adults" />
+            </View>
+            <View style={s.stepperRow}>
+              <View style={s.stepperMeta}>
+                <Ionicons name="happy-outline" size={16} color={Colors.textMuted} />
+                <Text style={s.stepperLabel}>Children</Text>
+              </View>
+              <NumberStepper value={children} onIncrement={() => { setChildren(c => Math.min(c + 1, 20)); mark(); }} onDecrement={() => { setChildren(c => Math.max(c - 1, 0)); mark(); }} min={0} testID="settings-children" />
+            </View>
+
+            <View style={s.inCardDivider} />
+
+            <FieldLabel>Preferred stores</FieldLabel>
+            <CompactChipSelector options={STORES} selected={stores} onToggle={(st) => toggle(stores, setStores, st)} testIDPrefix="settings-store" />
           </View>
 
-          {/* Meals */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>DEFAULT MEAL COVERAGE</Text>
-            <ChipSelector options={MEAL_COVERAGE} selected={meals} onToggle={(m) => toggle(meals, setMeals, m)} testIDPrefix="settings-meal" />
-          </View>
+          {/* ════════════════════════════════════════════ */}
+          {/* CARD 2 — Food & Cooking Rules              */}
+          {/* ════════════════════════════════════════════ */}
+          <View style={s.groupCard}>
+            <SectionHeader icon="restaurant-outline" title="Food & Cooking Rules" subtitle="Meals, methods, restrictions, and dislikes" />
 
-          {/* Cooking Style */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>DEFAULT COOKING STYLE</Text>
-            <ChipSelector options={COOKING_STYLES} selected={cookingStyle} onToggle={(c) => toggle(cookingStyle, setCookingStyle, c)} testIDPrefix="settings-cooking" />
-          </View>
+            <FieldLabel>Meal coverage</FieldLabel>
+            <CompactChipSelector options={MEAL_COVERAGE} selected={meals} onToggle={(m) => toggle(meals, setMeals, m)} testIDPrefix="settings-meal" />
 
-          {/* Dietary */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>DIETARY DEFAULTS</Text>
-            <ChipSelector options={DIETARY_RULES} selected={dietaryRules} onToggle={(d) => toggle(dietaryRules, setDietaryRules, d)} testIDPrefix="settings-dietary" />
-          </View>
+            <View style={s.fieldGap} />
+            <FieldLabel>Cooking style</FieldLabel>
+            <CompactChipSelector options={COOKING_STYLES} selected={cookingStyle} onToggle={(c) => toggle(cookingStyle, setCookingStyle, c)} testIDPrefix="settings-cooking" />
 
-          {/* Exclusions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>EXCLUSIONS</Text>
+            <View style={s.inCardDivider} />
+
+            <FieldLabel>Dietary restrictions</FieldLabel>
+            {dietaryRules.length === 0 && (
+              <Text style={s.noneActiveHint}>None active — tap to add</Text>
+            )}
+            <CompactChipSelector options={DIETARY_RULES} selected={dietaryRules} onToggle={(d) => toggle(dietaryRules, setDietaryRules, d)} testIDPrefix="settings-dietary" />
+
+            <View style={s.fieldGap} />
+            <FieldLabel>Exclusions & dislikes</FieldLabel>
             <TextInput
               testID="settings-exclusions"
-              style={styles.textInput}
+              style={s.textInput}
               value={exclusions}
-              onChangeText={setExclusions}
-              placeholder="e.g. mushrooms, cilantro"
+              onChangeText={(t) => { setExclusions(t); mark(); }}
+              placeholder="e.g. mushrooms, cilantro, shellfish"
               placeholderTextColor={Colors.textMuted}
               multiline
             />
           </View>
 
-          {/* Save / Reset */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity testID="save-settings-btn" style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Defaults</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity testID="reset-settings-btn" style={styles.resetBtn} onPress={handleReset}>
-              <Text style={styles.resetBtnText}>Reset</Text>
-            </TouchableOpacity>
-          </View>
+          {/* ════════════════════════════════════════════ */}
+          {/* CARD 3 — Weekly History                     */}
+          {/* ════════════════════════════════════════════ */}
+          <View style={s.groupCard}>
+            <SectionHeader icon="time-outline" title="Weekly History" subtitle="Past plans you can revisit or reuse" />
 
-          {/* History */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>WEEKLY HISTORY</Text>
-            <TouchableOpacity testID="save-history-btn" style={styles.historyAction} onPress={handleSaveToHistory}>
-              <Ionicons name="bookmark-outline" size={18} color={Colors.primary} />
-              <Text style={styles.historyActionText}>Save current week to history</Text>
+            <TouchableOpacity testID="save-history-btn" style={s.bookmarkAction} onPress={handleSaveToHistory} activeOpacity={0.7}>
+              <Ionicons name="bookmark-outline" size={16} color={Colors.primary} />
+              <Text style={s.bookmarkText}>Save current week to history</Text>
+              <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
             </TouchableOpacity>
+
             {history.length === 0 ? (
-              <Text style={styles.emptyHistoryText}>No saved weeks yet</Text>
-            ) : (
-              history.map((entry: any) => (
-                <View key={entry.id} style={styles.historyCard}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.historyDate}>
-                      {new Date(entry.saved_at || entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Text>
-                    <Text style={styles.historyMeta}>
-                      {entry.plan?.selectedRecipes?.length || 0} recipes
-                    </Text>
-                  </View>
-                  <TouchableOpacity testID={`duplicate-${entry.id}`} style={styles.duplicateBtn} onPress={() => handleDuplicate(entry.id)}>
-                    <Ionicons name="copy-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.duplicateBtnText}>Use</Text>
-                  </TouchableOpacity>
+              <View style={s.emptyHistory}>
+                <View style={s.emptyHistoryIcon}>
+                  <Ionicons name="albums-outline" size={28} color={Colors.border} />
                 </View>
-              ))
+                <Text style={s.emptyHistoryTitle}>No saved weeks</Text>
+                <Text style={s.emptyHistoryBody}>
+                  After you generate a plan, save it here to reference or reuse it later.
+                </Text>
+              </View>
+            ) : (
+              <View style={s.historyList}>
+                {history.map((entry: any, idx: number) => {
+                  const recipes = entry.plan?.selectedRecipes || [];
+                  const recipeCount = recipes.length;
+                  const mealTypes = [...new Set(recipes.map((r: any) => r.mealType).filter(Boolean))];
+                  const savedDate = entry.saved_at || entry.created_at;
+                  const configBudget = entry.config?.budget;
+                  const configAdults = entry.config?.adults;
+                  const configChildren = entry.config?.children;
+
+                  return (
+                    <View key={entry.id} style={[s.historyCard, idx === history.length - 1 && { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]} testID={`history-card-${entry.id}`}>
+                      <View style={s.historyCardLeft}>
+                        <View style={s.historyDateRow}>
+                          <Text style={s.historyDate}>
+                            {new Date(savedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </Text>
+                          <View style={s.historyTimeBadge}>
+                            <Text style={s.historyTimeText}>{timeAgo(savedDate)}</Text>
+                          </View>
+                        </View>
+                        <View style={s.historyMetaRow}>
+                          {recipeCount > 0 && (
+                            <View style={s.historyChip}>
+                              <Ionicons name="restaurant-outline" size={11} color={Colors.textMuted} />
+                              <Text style={s.historyChipText}>{recipeCount} meals</Text>
+                            </View>
+                          )}
+                          {configAdults != null && (
+                            <View style={s.historyChip}>
+                              <Ionicons name="people-outline" size={11} color={Colors.textMuted} />
+                              <Text style={s.historyChipText}>{configAdults}A{configChildren ? ` ${configChildren}C` : ''}</Text>
+                            </View>
+                          )}
+                          {configBudget != null && (
+                            <View style={s.historyChip}>
+                              <Text style={s.historyChipText}>${configBudget}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {mealTypes.length > 0 && (
+                          <Text style={s.historyMealTypes} numberOfLines={1}>
+                            {recipes.slice(0, 3).map((r: any) => r.name).join(' · ')}
+                          </Text>
+                        )}
+                      </View>
+                      <TouchableOpacity testID={`duplicate-${entry.id}`} style={s.reuseBtn} onPress={() => handleDuplicate(entry.id)} activeOpacity={0.7}>
+                        <Ionicons name="arrow-redo-outline" size={15} color={Colors.primary} />
+                        <Text style={s.reuseBtnText}>Reuse</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
             )}
           </View>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Sticky Action Bar ── */}
+      <View style={s.actionBar}>
+        <TouchableOpacity testID="reset-settings-btn" style={s.resetBtn} onPress={handleReset} activeOpacity={0.7}>
+          <Ionicons name="refresh-outline" size={16} color={Colors.danger} />
+          <Text style={s.resetBtnText}>Reset</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          testID="save-settings-btn"
+          style={[s.saveBtn, !dirty && s.saveBtnDisabled]}
+          onPress={handleSave}
+          disabled={saving || !dirty}
+          activeOpacity={0.8}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" />
+              <Text style={s.saveBtnText}>{dirty ? 'Save Defaults' : 'Saved'}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 20, paddingTop: 12 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: Colors.textMain },
-  headerSubtitle: { fontSize: 15, color: Colors.textMuted, marginTop: 4, marginBottom: 20 },
-  section: { marginBottom: 24 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
-  card: { backgroundColor: Colors.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: Colors.border },
-  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontSize: 16, fontWeight: '600', color: Colors.textMain },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 16 },
-  textInput: {
-    backgroundColor: Colors.surface, borderRadius: 12, padding: 16, fontSize: 15,
-    color: Colors.textMain, borderWidth: 1, borderColor: Colors.border, minHeight: 56, textAlignVertical: 'top',
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: Colors.textMuted },
+  scrollContent: { padding: 20, paddingTop: 12 },
+
+  /* ── Profile Header ── */
+  profileHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, gap: 12 },
+  profileBadge: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: Colors.primary + '14',
+    alignItems: 'center', justifyContent: 'center',
   },
-  buttonRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-  saveBtn: { flex: 1, backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
-  resetBtn: { paddingHorizontal: 24, paddingVertical: 16, borderRadius: 14, borderWidth: 1, borderColor: Colors.danger, alignItems: 'center' },
-  resetBtnText: { fontSize: 16, fontWeight: '600', color: Colors.danger },
-  historyAction: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-  historyActionText: { fontSize: 15, fontWeight: '600', color: Colors.primary },
-  emptyHistoryText: { fontSize: 14, color: Colors.textMuted, fontStyle: 'italic' },
+  profileTitle: { fontSize: 22, fontWeight: '700', color: Colors.textMain, letterSpacing: -0.3 },
+  profileHint: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
+  unsavedBadge: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6,
+    backgroundColor: Colors.warning + '20',
+  },
+  unsavedText: { fontSize: 11, fontWeight: '700', color: Colors.warning, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  /* ── Group Card ── */
+  groupCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+
+  /* ── Section Header (inside card) ── */
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  sectionIconWrap: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: Colors.primary + '10',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: Colors.textMain },
+  sectionSubtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+
+  /* ── Fields ── */
+  fieldLabel: {
+    fontSize: 11, fontWeight: '700', color: Colors.textMuted,
+    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8,
+  },
+  fieldGap: { height: 16 },
+  noneActiveHint: { fontSize: 12, color: Colors.textMuted, fontStyle: 'italic', marginBottom: 6 },
+
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  stepperMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepperLabel: { fontSize: 15, fontWeight: '600', color: Colors.textMain },
+
+  inCardDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 20 },
+
+  textInput: {
+    backgroundColor: Colors.background, borderRadius: 10, padding: 14, fontSize: 14,
+    color: Colors.textMain, borderWidth: 1, borderColor: Colors.border, minHeight: 48, textAlignVertical: 'top',
+  },
+
+  /* ── Bookmark Action ── */
+  bookmarkAction: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 14,
+    backgroundColor: Colors.primary + '08', borderRadius: 10,
+    marginBottom: 16,
+  },
+  bookmarkText: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.primary },
+
+  /* ── Empty History ── */
+  emptyHistory: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16 },
+  emptyHistoryIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: Colors.surfaceMuted, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  emptyHistoryTitle: { fontSize: 15, fontWeight: '600', color: Colors.textMuted, marginBottom: 4 },
+  emptyHistoryBody: { fontSize: 13, color: Colors.textMuted, textAlign: 'center', lineHeight: 18 },
+
+  /* ── History List ── */
+  historyList: {},
   historyCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: Colors.surface, borderRadius: 12, padding: 16, marginBottom: 8,
-    borderWidth: 1, borderColor: Colors.border,
+    paddingBottom: 14, marginBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  historyDate: { fontSize: 15, fontWeight: '600', color: Colors.textMain },
-  historyMeta: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
-  duplicateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: Colors.surfaceMuted },
-  duplicateBtnText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+  historyCardLeft: { flex: 1 },
+  historyDateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  historyDate: { fontSize: 15, fontWeight: '700', color: Colors.textMain },
+  historyTimeBadge: {
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  historyTimeText: { fontSize: 10, fontWeight: '600', color: Colors.textMuted },
+  historyMetaRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },
+  historyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+    backgroundColor: Colors.background,
+  },
+  historyChipText: { fontSize: 11, fontWeight: '500', color: Colors.textMuted },
+  historyMealTypes: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  reuseBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+    backgroundColor: Colors.primary + '10',
+  },
+  reuseBtnText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+
+  /* ── Sticky Action Bar ── */
+  actionBar: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 20, paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1, borderTopColor: Colors.border,
+  },
+  resetBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.danger + '0A',
+    borderWidth: 1, borderColor: Colors.danger + '25',
+  },
+  resetBtnText: { fontSize: 14, fontWeight: '600', color: Colors.danger },
+  saveBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 14, borderRadius: 12,
+    backgroundColor: Colors.primary,
+  },
+  saveBtnDisabled: { backgroundColor: Colors.primary + '60' },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 });
