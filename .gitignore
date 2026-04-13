@@ -3,6 +3,7 @@
 # IDE and editors
 .idea/
 .vscode/
+.gitconfig
 
 # Dependencies
 node_modules/
@@ -18,6 +19,7 @@ node_modules/
 
 # Testing
 /coverage
+test_reports/
 
 # Next.js
 /.next/
@@ -45,6 +47,8 @@ dump.rdb
 # System files
 .DS_Store
 *.pem
+*.playground/
+*.xcworkspace/
 
 # Python
 __pycache__/

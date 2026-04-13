@@ -21,8 +21,12 @@ from starlette.middleware.cors import CORSMiddleware
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+# Allow using a root-level `.env` (see `.env.example`) when `backend/.env` is absent.
+load_dotenv(ROOT_DIR.parent / ".env", override=False)
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required. Copy `.env.example` to `.env` and set DATABASE_URL.")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -381,11 +385,17 @@ def call_openai_responses(system_prompt: str, user_prompt: str, schema_name: str
 
 
 async def call_emergent_chat(system_message: str, prompt: str, session_prefix: str) -> str:
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="AI key not configured")
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Optional dependency missing: emergentintegrations. Install backend/requirements-emergent.txt to enable EMERGENT_LLM_KEY support.",
+        ) from exc
 
     chat = LlmChat(
         api_key=api_key,
@@ -950,11 +960,17 @@ async def delete_inventory_item(item_id: str, authorization: Optional[str] = Hea
 async def extract_photo(req: PhotoExtractRequest, authorization: Optional[str] = Header(default=None)):
     await require_session(authorization)
     try:
-        from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
-
         api_key = os.environ.get("EMERGENT_LLM_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="AI key not configured")
+
+        try:
+            from emergentintegrations.llm.chat import ImageContent, LlmChat, UserMessage
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=500,
+                detail="Optional dependency missing: emergentintegrations. Install backend/requirements-emergent.txt to enable EMERGENT_LLM_KEY support.",
+            ) from exc
 
         chat = LlmChat(
             api_key=api_key,

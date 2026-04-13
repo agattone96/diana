@@ -1,0 +1,51 @@
+{
+  "name": "diana-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Diana macOS desktop wrapper (Electron) loading the Expo web export.",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "sync-renderer": "node scripts/sync-renderer.mjs",
+    "start": "electron .",
+    "dist:mac": "electron-builder --mac dmg --publish never"
+  },
+  "dependencies": {
+    "electron": "^33.2.1"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.diana.app",
+    "productName": "Diana",
+    "copyright": "Copyright (c) Diana",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "renderer-dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "writeUpdateInfo": false
+    }
+  }
+}
+

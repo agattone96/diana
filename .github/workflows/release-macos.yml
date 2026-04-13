@@ -1,0 +1,47 @@
+name: desktop-macos-unsigned
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend web export
+        working-directory: frontend
+        run: |
+          yarn install --frozen-lockfile
+          npx expo export --platform web
+
+      - name: Sync renderer into desktop app
+        run: node desktop/scripts/sync-renderer.mjs
+
+      - name: Install desktop deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build unsigned macOS artifact
+        working-directory: desktop
+        env:
+          DIANA_BACKEND_URL: ${{ secrets.DIANA_BACKEND_URL }}
+        run: npm run dist:mac
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: diana-desktop-macos-unsigned
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.zip
+
