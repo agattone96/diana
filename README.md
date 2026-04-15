@@ -13,6 +13,13 @@
   - `DATABASE_URL` (server-only; include `?sslmode=require` for Neon)
   - `EXPO_PUBLIC_BACKEND_URL` (frontend-safe; points at your backend base URL)
 
+## Free local database (Postgres)
+
+- Start local Postgres (Docker): `make db-up`
+- Reset local Postgres data (destructive): `make db-reset`
+- Verify local Postgres: `make db-verify`
+- Default local `DATABASE_URL` is prefilled in `.env.example`.
+
 ## Quickstart (backend)
 
 - Prereq: Python 3.12 (see `.tool-versions`)
@@ -39,7 +46,8 @@
 
 ## Database connectivity check (Neon/Postgres)
 
-- `DATABASE_URL='...' npm run db:verify`
+- Neon (HTTP driver): `DATABASE_URL='...' npm run db:verify`
+- Local Docker Postgres: `make db-verify`
 
 ## Validation entry points
 

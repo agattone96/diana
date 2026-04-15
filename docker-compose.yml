@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: diana-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: diana
+      POSTGRES_USER: diana
+      POSTGRES_PASSWORD: diana
+    ports:
+      - "5432:5432"
+    volumes:
+      - diana_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diana -d diana"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  diana_postgres_data:
+
